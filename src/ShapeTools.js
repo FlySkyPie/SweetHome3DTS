@@ -18,16 +18,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-// Requires scene3d.js
-
+import {
+  Polyline,
+} from './SweetHome3D';
 
 /**
  * Gathers some useful tools for shapes.
  * @class
  * @author Emmanuel Puybaret
  */
-var ShapeTools = {
-    parsedShapes : {}
+let ShapeTools = {
+  parsedShapes: {}
 };
 
 /**
@@ -39,8 +40,8 @@ var ShapeTools = {
  * @param {number} dashOffset
  * @return {Object}
  */
-ShapeTools.getStroke = function (thickness, capStyle, joinStyle, dashPattern, dashOffset) {
-  var strokeCapStyle;
+ShapeTools.getStroke = (thickness, capStyle, joinStyle, dashPattern, dashOffset) => {
+  let strokeCapStyle;
   switch (capStyle) {
     case Polyline.CapStyle.ROUND:
       strokeCapStyle = java.awt.BasicStroke.CAP_ROUND;
@@ -52,8 +53,8 @@ ShapeTools.getStroke = function (thickness, capStyle, joinStyle, dashPattern, da
       strokeCapStyle = java.awt.BasicStroke.CAP_BUTT;
       break;
   }
-  
-  var strokeJoinStyle;
+
+  let strokeJoinStyle;
   switch (joinStyle) {
     case Polyline.JoinStyle.ROUND:
     case Polyline.JoinStyle.CURVED:
@@ -66,17 +67,17 @@ ShapeTools.getStroke = function (thickness, capStyle, joinStyle, dashPattern, da
       strokeJoinStyle = java.awt.BasicStroke.JOIN_MITER;
       break;
   }
-  
-  var dashPhase = 0;
+
+  let dashPhase = 0;
   if (dashPattern != null) {
     if (!Array.isArray(dashPattern)) {
       dashPattern = undefined;
       dashPhase = undefined;
     } else {
       dashPattern = dashPattern.slice(0);
-      for (var i = 0; i < dashPattern.length; i++) {
-        dashPattern [i] *= thickness;
-        dashPhase += dashPattern [i];
+      for (let i = 0; i < dashPattern.length; i++) {
+        dashPattern[i] *= thickness;
+        dashPhase += dashPattern[i];
       }
       dashPhase *= dashOffset;
     }
@@ -91,28 +92,28 @@ ShapeTools.getStroke = function (thickness, capStyle, joinStyle, dashPattern, da
  * @param {boolean} closedPath
  * @return {Object}
  */
-ShapeTools.getPolylineShape = function (points, curved, closedPath) {
+ShapeTools.getPolylineShape = (points, curved, closedPath) => {
   if (curved) {
-    var polylineShape = new java.awt.geom.GeneralPath();
-    for (var i = 0, n = closedPath ? points.length : points.length - 1; i < n; i++) {
-      var curve2D = new java.awt.geom.CubicCurve2D.Float();
-      var previousPoint = points[i === 0 ? points.length - 1 : i - 1];
-      var point = points[i];
-      var nextPoint = points[i === points.length - 1 ? 0 : i + 1];
-      var vectorToBisectorPoint = [nextPoint[0] - previousPoint[0], nextPoint[1] - previousPoint[1]];
-      var nextNextPoint = points[(i + 2) % points.length];
-      var vectorToBisectorNextPoint = [point[0] - nextNextPoint[0], point[1] - nextNextPoint[1]];
-      curve2D.setCurve(point[0], point[1], 
-          point[0] + (i !== 0 || closedPath ? vectorToBisectorPoint[0] / 3.625 : 0), 
-          point[1] + (i !== 0 || closedPath ? vectorToBisectorPoint[1] / 3.625 : 0), 
-          nextPoint[0] + (i !== points.length - 2 || closedPath ? vectorToBisectorNextPoint[0] / 3.625 : 0), 
-          nextPoint[1] + (i !== points.length - 2 || closedPath ? vectorToBisectorNextPoint[1] / 3.625 : 0), 
-          nextPoint[0], nextPoint[1]);
+    let polylineShape = new java.awt.geom.GeneralPath();
+    for (let i = 0, n = closedPath ? points.length : points.length - 1; i < n; i++) {
+      let curve2D = new java.awt.geom.CubicCurve2D.Float();
+      let previousPoint = points[i === 0 ? points.length - 1 : i - 1];
+      let point = points[i];
+      let nextPoint = points[i === points.length - 1 ? 0 : i + 1];
+      let vectorToBisectorPoint = [nextPoint[0] - previousPoint[0], nextPoint[1] - previousPoint[1]];
+      let nextNextPoint = points[(i + 2) % points.length];
+      let vectorToBisectorNextPoint = [point[0] - nextNextPoint[0], point[1] - nextNextPoint[1]];
+      curve2D.setCurve(point[0], point[1],
+        point[0] + (i !== 0 || closedPath ? vectorToBisectorPoint[0] / 3.625 : 0),
+        point[1] + (i !== 0 || closedPath ? vectorToBisectorPoint[1] / 3.625 : 0),
+        nextPoint[0] + (i !== points.length - 2 || closedPath ? vectorToBisectorNextPoint[0] / 3.625 : 0),
+        nextPoint[1] + (i !== points.length - 2 || closedPath ? vectorToBisectorNextPoint[1] / 3.625 : 0),
+        nextPoint[0], nextPoint[1]);
       polylineShape.append(curve2D, true);
     }
     return polylineShape;
   } else {
-      return ShapeTools.getShape(points, closedPath, null);
+    return ShapeTools.getShape(points, closedPath, null);
   }
 }
 
@@ -127,11 +128,11 @@ ShapeTools.getPolylineShape = function (points, curved, closedPath) {
  * @protected
  * @ignore
  */
-ShapeTools.getShape = function(points, closedPath, transform) {
+ShapeTools.getShape = (points, closedPath, transform) => {
   if (points instanceof Array) {
-    var path = new java.awt.geom.GeneralPath();
+    let path = new java.awt.geom.GeneralPath();
     path.moveTo(Math.fround(points[0][0]), Math.fround(points[0][1]));
-    for (var i = 1; i < points.length; i++) {
+    for (let i = 1; i < points.length; i++) {
       path.lineTo(Math.fround(points[i][0]), Math.fround(points[i][1]));
     }
     if (closedPath) {
@@ -142,13 +143,13 @@ ShapeTools.getShape = function(points, closedPath, transform) {
     }
     return path;
   } else {
-    var svgPathShape = points;
-    var shape2D = ShapeTools.parsedShapes [svgPathShape];
+    let svgPathShape = points;
+    let shape2D = ShapeTools.parsedShapes[svgPathShape];
     if (!shape2D) {
       shape2D = new java.awt.geom.Rectangle2D.Float(0, 0, 1, 1);
       try {
-        var pathProducer = new org.apache.batik.parser.AWTPathProducer();
-        var pathParser = new org.apache.batik.parser.PathParser();
+        let pathProducer = new org.apache.batik.parser.AWTPathProducer();
+        let pathParser = new org.apache.batik.parser.PathParser();
         pathParser.setPathHandler(pathProducer);
         pathParser.parse(svgPathShape);
         shape2D = pathProducer.getShape();
@@ -160,3 +161,5 @@ ShapeTools.getShape = function(points, closedPath, transform) {
     return shape2D;
   }
 }
+
+export { ShapeTools };

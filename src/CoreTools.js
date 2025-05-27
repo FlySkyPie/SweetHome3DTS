@@ -18,6 +18,10 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+import { IllegalArgumentException } from './core';
+import { UUID } from './core';
+import { OperatingSystem, ZIPTools, } from './URLContent';
+
 /**
  * Tools for application.
  * @class
@@ -25,7 +29,7 @@
  * @author Renaud Pawlak
  * @author Emmanuel Puybaret
  */
-var CoreTools = {};
+let CoreTools = {};
 
 CoreTools.unavailableResources = [];
 
@@ -38,40 +42,40 @@ CoreTools.unavailableResources = [];
                          once the given <code>url</url> is loaded and its JSON content is parsed.  
  * @return an object matching the loaded JSON if loaded synchronously
  */
-CoreTools.loadJSON = function(url, observer) {
+CoreTools.loadJSON = (url, observer) => {
   if (url.indexOf('/') !== 0 && url.indexOf("://") < 0) {
     // Relative URLs based on scripts folder
     url = ZIPTools.getScriptFolder() + url;
   }
-  
+
   if (CoreTools.unavailableResources.indexOf(url) < 0) {
     try {
-      var request = new XMLHttpRequest();
+      let request = new XMLHttpRequest();
       request.open("GET", url, observer !== undefined);
       if (observer !== undefined) {
-        request.addEventListener("load", function() {
-            if (request.readyState === XMLHttpRequest.DONE) {
-              if (request.status === 0 || request.status === 200) {
-                try {
-                  observer.jsonLoaded(JSON.parse(request.responseText));
-                } catch (ex) {
-                  CoreTools.unavailableResources.push(url);
-                  if (observer !== undefined
-                      && observer.jsonError !== undefined) {
-                    observer.jsonError(ex, ex.message);
-                  }
+        request.addEventListener("load", () => {
+          if (request.readyState === XMLHttpRequest.DONE) {
+            if (request.status === 0 || request.status === 200) {
+              try {
+                observer.jsonLoaded(JSON.parse(request.responseText));
+              } catch (ex) {
+                CoreTools.unavailableResources.push(url);
+                if (observer !== undefined
+                  && observer.jsonError !== undefined) {
+                  observer.jsonError(ex, ex.message);
                 }
-              } else if (observer.jsonError !== undefined) {
-                observer.jsonError(request.status, request.statusText);
               }
-            }
-          });
-        request.addEventListener("error", function() {
-            CoreTools.unavailableResources.push(url);
-            if (observer.jsonError !== undefined) {
+            } else if (observer.jsonError !== undefined) {
               observer.jsonError(request.status, request.statusText);
-            } 
-          });
+            }
+          }
+        });
+        request.addEventListener("error", () => {
+          CoreTools.unavailableResources.push(url);
+          if (observer.jsonError !== undefined) {
+            observer.jsonError(request.status, request.statusText);
+          }
+        });
       }
       request.send();
       if (observer === undefined) {
@@ -80,12 +84,12 @@ CoreTools.loadJSON = function(url, observer) {
     } catch (ex) {
       CoreTools.unavailableResources.push(url);
       if (observer !== undefined
-          && observer.jsonError !== undefined) {
+        && observer.jsonError !== undefined) {
         observer.jsonError(ex, ex.message);
       }
     }
   } else if (observer !== undefined
-             && observer.jsonError !== undefined) {
+    && observer.jsonError !== undefined) {
     observer.jsonError(404, "No " + url);
   }
   return undefined;
@@ -97,33 +101,33 @@ CoreTools.loadJSON = function(url, observer) {
  * @param {Object[]|...Object} args an array of arguments to be applied to formatString
  * @return the formatted string
  */
-CoreTools.format = function(formatString, args) {
+CoreTools.format = function (formatString, args) {
   if (args === undefined || args.length === 0) {
     return formatString;
   } else {
-    var placeHolders = /%%|%08X|%s|%d|%\d+\$s|%\d+\$d/g;
-    var matchResult;
-    var result = "";
-    var currentIndex = 0;
-    var values = Array.isArray(args) ? args : Array.prototype.slice.call(arguments, 1);
-    var currentValueIndex = 0;
+    let placeHolders = /%%|%08X|%s|%d|%\d+\$s|%\d+\$d/g;
+    let matchResult;
+    let result = "";
+    let currentIndex = 0;
+    let values = Array.isArray(args) ? args : Array.prototype.slice.call(arguments, 1);
+    let currentValueIndex = 0;
 
     placeHolders.lastIndex = 0;
     while ((matchResult = placeHolders.exec(formatString)) !== null) {
       result += formatString.slice(currentIndex, placeHolders.lastIndex - matchResult[0].length);
 
-      var indexResult;
+      let indexResult;
       if (matchResult[0] == "%%") {
         result += '%';
       } if (matchResult[0] == "%08X") {
-        var n = values[0];
+        let n = values[0];
         if (n < 0) {
           n = 0xFFFFFFFF + n + 1;
         }
-        var s = n.toString(16).toUpperCase();
-        for (var i = 8 - s.length; i > 0; i--) {
+        let s = n.toString(16).toUpperCase();
+        for (let i = 8 - s.length; i > 0; i--) {
           result += "0";
-        } 
+        }
         result += s;
       } else if ((indexResult = /%(\d+)\$s/g.exec(matchResult[0])) !== null) {
         var valueIndex = parseInt(indexResult[1]) - 1;
@@ -149,12 +153,12 @@ CoreTools.format = function(formatString, args) {
  * @return the string with all the accentuated characters substituted with the corresponding 
  *          un-accentuated characters  
  */
-CoreTools.removeAccents = function(string) {
+CoreTools.removeAccents = string => {
   return string != null
-      ? (typeof string.normalize == "function" // Not available under IE 11 and Safari 8/9
-            ? string.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            : string.replace(/[áàâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[íìîï]/g, "i").replace(/[óòôö]/g, "o").replace(/[úùûü]/g, "u"))
-      : string;
+    ? (typeof string.normalize == "function" // Not available under IE 11 and Safari 8/9
+      ? string.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      : string.replace(/[áàâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[íìîï]/g, "i").replace(/[óòôö]/g, "o").replace(/[úùûü]/g, "u"))
+    : string;
 }
 
 /**
@@ -164,10 +168,10 @@ CoreTools.removeAccents = function(string) {
  * @param {boolean} [noCache] force refresh content
  * @return an array of bundle objects, starting with the most specific localization to the default
  */
-CoreTools.loadResourceBundles = function(baseURL, language, noCache) {
-  var queryString = noCache ? "?requestId=" + UUID.randomUUID() : "";
+CoreTools.loadResourceBundles = (baseURL, language, noCache) => {
+  let queryString = noCache ? "?requestId=" + UUID.randomUUID() : "";
 
-  var resourceBundles = [];
+  let resourceBundles = [];
   if (language) {
     resourceBundles.push(CoreTools.loadJSON(baseURL + "_" + language + ".json" + queryString));
     if (language.indexOf("_") > 0) {
@@ -176,7 +180,7 @@ CoreTools.loadResourceBundles = function(baseURL, language, noCache) {
   }
 
   resourceBundles.push(CoreTools.loadJSON(baseURL + ".json" + queryString));
-  return resourceBundles;  
+  return resourceBundles;
 }
 
 /**
@@ -186,8 +190,8 @@ CoreTools.loadResourceBundles = function(baseURL, language, noCache) {
  * @param {...Object} parameters  parameters for the formatting of the key
  * @return the value associated with the key (in the first bundle object that contains it)
  */
-CoreTools.getStringFromKey = function(resourceBundles, key, parameters) {
-  for (var i = 0; i < resourceBundles.length; i++) {
+CoreTools.getStringFromKey = function (resourceBundles, key, parameters) {
+  for (let i = 0; i < resourceBundles.length; i++) {
     if (resourceBundles[i] != null && resourceBundles[i][key] !== undefined) {
       return CoreTools.format.apply(null, [resourceBundles[i][key]].concat(Array.prototype.slice.call(arguments, 2)));
     }
@@ -200,11 +204,11 @@ CoreTools.getStringFromKey = function(resourceBundles, key, parameters) {
  * @param {Object[]} resourceBundles an array of bundle objects to look up the keys into.
  * @return the list of keys found in the bundle
  */
-CoreTools.getKeys = function(resourceBundles) {
-  var keys = {};
-  for (var i = 0; i < resourceBundles.length; i++) {
+CoreTools.getKeys = resourceBundles => {
+  let keys = {};
+  for (let i = 0; i < resourceBundles.length; i++) {
     if (resourceBundles[i] != null) {
-      CoreTools.merge(keys,  resourceBundles[i]);
+      CoreTools.merge(keys, resourceBundles[i]);
     }
   }
   return Object.getOwnPropertyNames(keys);
@@ -216,24 +220,24 @@ CoreTools.getKeys = function(resourceBundles) {
  * @param key {string|Object} the key to associate the value to (can be an object or a string)
  * @return {Object} the value associated to the key (null if not found)
  */
-CoreTools.getFromMap = function(map, key) {
+CoreTools.getFromMap = (map, key) => {
   if (typeof key === 'string') {
     return map[key] === undefined ? null : map[key];
   } else {
     if (map.entries == null) {
-      map.entries = []; 
+      map.entries = [];
     }
-    var keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
-    for (var i = 0; i < map.entries.length; i++) {
+    let keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
+    for (let i = 0; i < map.entries.length; i++) {
       if ((keyHashCode === undefined || map.entries[i].keyHashCode === keyHashCode)
-            && map.entries[i].key.equals !== undefined 
-            && map.entries[i].key.equals(key) 
-          || map.entries[i].key === key) {
+        && map.entries[i].key.equals !== undefined
+        && map.entries[i].key.equals(key)
+        || map.entries[i].key === key) {
         return map.entries[i].value;
       }
     }
     return null;
-  }  
+  }
 }
 
 /**
@@ -243,30 +247,31 @@ CoreTools.getFromMap = function(map, key) {
  * @param {string|Object} key the key to associate the value to (can be an object or a string)
  * @param {Object} value the value to be put
  */
-CoreTools.putToMap = function(map, key, value) {
+CoreTools.putToMap = (map, key, value) => {
   if (typeof key === 'string') {
     map[key] = value;
   } else {
     if (map.entries == null) {
       map.entries = [];
     }
-    var keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
-    for (var i = 0; i < map.entries.length; i++) {
+    let keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
+    for (let i = 0; i < map.entries.length; i++) {
       if ((keyHashCode === undefined || map.entries[i].keyHashCode === keyHashCode)
-            && map.entries[i].key.equals !== undefined 
-            && map.entries[i].key.equals(key) 
-          || map.entries[i].key === key) {
+        && map.entries[i].key.equals !== undefined
+        && map.entries[i].key.equals(key)
+        || map.entries[i].key === key) {
         map.entries[i].value = value;
         return;
       }
     }
-    var entry = {key: key, 
-                 value: value,
-                 getKey: function () { return this.key; }, 
-                 getValue: function () { return this.value; } 
-                };
+    let entry = {
+      key: key,
+      value: value,
+      getKey: function () { return this.key; },
+      getValue: function () { return this.value; }
+    };
     if (typeof key.hashCode === 'function') {
-      entry.keyHashCode = key.hashCode(); 
+      entry.keyHashCode = key.hashCode();
     }
     map.entries.push(entry);
   }
@@ -279,7 +284,7 @@ CoreTools.putToMap = function(map, key, value) {
  * @param {string|*} key the key to associate the value to (can be an object or a string)
  * @return the removed value or <code>null</code> if not found
  */
-CoreTools.removeFromMap = function(map, key) {
+CoreTools.removeFromMap = (map, key) => {
   if (typeof key === 'string') {
     var value = map[key];
     if (value !== undefined) {
@@ -287,12 +292,12 @@ CoreTools.removeFromMap = function(map, key) {
     }
     return value !== undefined ? value : null;
   } else {
-    var keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
-    for (var i = 0; i < map.entries.length; i++) {
+    let keyHashCode = typeof key.hashCode === 'function' ? key.hashCode() : undefined;
+    for (let i = 0; i < map.entries.length; i++) {
       if ((keyHashCode === undefined || map.entries[i].keyHashCode === keyHashCode)
-            && map.entries[i].key.equals !== undefined 
-            && map.entries[i].key.equals(key) 
-          || map.entries[i].key === key) {
+        && map.entries[i].key.equals !== undefined
+        && map.entries[i].key.equals(key)
+        || map.entries[i].key === key) {
         var value = map.entries[i].value; // TODO Why prototype is lost?
         map.entries.splice(i, 1);
         return value;
@@ -307,16 +312,16 @@ CoreTools.removeFromMap = function(map, key) {
  * @param {Object} map the map containing the values
  * @return {Array} the values (no specific order)
  */
-CoreTools.valuesFromMap = function(map) {
-  var values = [];
+CoreTools.valuesFromMap = map => {
+  let values = [];
   if (map.entries === undefined) {
-    Object.getOwnPropertyNames(map).forEach(function(property) {
-        values.push(map[property]); 
-      });
+    Object.getOwnPropertyNames(map).forEach((property) => {
+      values.push(map[property]);
+    });
   } else {
-    map.entries.forEach(function(entry) { 
-        values.push(entry.value); 
-      });
+    map.entries.forEach((entry) => {
+      values.push(entry.value);
+    });
   }
   return values;
 }
@@ -327,13 +332,13 @@ CoreTools.valuesFromMap = function(map) {
  * @param {Array} array an array to be sorted (in-place sort)
  * @param comparator {Object|function} an object providing a <code>compare(Object, Object)</code>, or simply a function
  */
-CoreTools.sortArray = function(array, comparator) { 
+CoreTools.sortArray = (array, comparator) => {
   if (comparator.compare) {
-    array.sort(function(e1, e2) {
-        return comparator.compare(e1,e2);
-      });
+    array.sort((e1, e2) => {
+      return comparator.compare(e1, e2);
+    });
   } else {
-    array.sort(comparator);  
+    array.sort(comparator);
   }
 }
 
@@ -344,8 +349,8 @@ CoreTools.sortArray = function(array, comparator) {
  * @param {Object} source
  * @return {Object} the destination object
  */
-CoreTools.merge = function(destination, source) {
-  for (var key in source) {
+CoreTools.merge = (destination, source) => {
+  for (let key in source) {
     destination[key] = source[key];
   }
 }
@@ -356,10 +361,10 @@ CoreTools.merge = function(destination, source) {
  * @param {any[]} array2
  * @return {any[]} an array container elements being both in array1 and array2
  */
-CoreTools.intersection = function(array1, array2) {
-  return array1.filter(function(n) {
-      return array2.indexOf(n) !== -1;
-    });  
+CoreTools.intersection = (array1, array2) => {
+  return array1.filter((n) => {
+    return array2.indexOf(n) !== -1;
+  });
 }
 
 /**
@@ -367,24 +372,24 @@ CoreTools.intersection = function(array1, array2) {
  * Internally uses a fixed list of standard Windows and macOS default fonts, and if FontFaceSet API is available, filter this list
  * @param {function(string[])} observer called back when list is available
  */
-CoreTools.loadAvailableFontNames = function(observer) {
-  var windowsFonts = ["Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria", "Cambria Math", "Candara", "Comic Sans MS", "Consolas", "Constantia", "Corbel", "Courier New", "Ebrima", "Franklin Gothic Medium", "Gabriola", "Gadugi", "Georgia", "HoloLens MDL2 Assets", "Impact", "Ink Free", "Javanese Text", "Leelawadee UI", "Lucida Console", "Lucida Sans Unicode", "Malgun Gothic", "Marlett", "Microsoft Himalaya", "Microsoft JhengHei", "Microsoft New Tai Lue", "Microsoft PhagsPa", "Microsoft Sans Serif", "Microsoft Tai Le", "Microsoft YaHei", "Microsoft Yi Baiti", "MingLiU-ExtB", "Mongolian Baiti", "MS Gothic", "MV Boli", "Myanmar Text", "Nirmala UI", "Palatino Linotype", "Segoe MDL2 Assets", "Segoe Print", "Segoe Script", "Segoe UI", "Segoe UI Historic", "Segoe UI Emoji", "Segoe UI Symbol", "SimSun", "Sitka", "Sylfaen", "Symbol", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana", "Webdings", "Wingdings", "Yu Gothic"];
-  var macosxFonts = ["American Typewriter", "Andale Mono", "Arial", "Arial Black", "Arial Narrow", "Arial Rounded MT Bold", "Arial Unicode MS", "Avenir", "Avenir Next", "Avenir Next Condensed", "Baskerville", "Big Caslon", "Bodoni 72", "Bodoni 72 Oldstyle", "Bodoni 72 Smallcaps", "Bradley Hand", "Brush Script MT", "Chalkboard", "Chalkboard SE", "Chalkduster", "Charter", "Cochin", "Comic Sans MS", "Copperplate", "Courier", "Courier New", "Didot", "DIN Alternate", "DIN Condensed", "Futura", "Geneva", "Georgia", "Gill Sans", "Helvetica", "Helvetica Neue", "Herculanum", "Hoefler Text", "Impact", "Lucida Grande", "Luminari", "Marker Felt", "Menlo", "Microsoft Sans Serif", "Monaco", "Noteworthy", "Optima", "Palatino", "Papyrus", "Phosphate", "Rockwell", "Savoye LET", "SignPainter", "Skia", "Snell Roundhand", "Tahoma", "Times", "Times New Roman", "Trattatello", "Trebuchet MS", "Verdana", "Zapfino"];
-  var defaultFonts = ["Arial", "Brush Script MT", "Courier New", "Garamond", "Georgia", "Helvetica", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana"];
+CoreTools.loadAvailableFontNames = observer => {
+  let windowsFonts = ["Arial", "Arial Black", "Bahnschrift", "Calibri", "Cambria", "Cambria Math", "Candara", "Comic Sans MS", "Consolas", "Constantia", "Corbel", "Courier New", "Ebrima", "Franklin Gothic Medium", "Gabriola", "Gadugi", "Georgia", "HoloLens MDL2 Assets", "Impact", "Ink Free", "Javanese Text", "Leelawadee UI", "Lucida Console", "Lucida Sans Unicode", "Malgun Gothic", "Marlett", "Microsoft Himalaya", "Microsoft JhengHei", "Microsoft New Tai Lue", "Microsoft PhagsPa", "Microsoft Sans Serif", "Microsoft Tai Le", "Microsoft YaHei", "Microsoft Yi Baiti", "MingLiU-ExtB", "Mongolian Baiti", "MS Gothic", "MV Boli", "Myanmar Text", "Nirmala UI", "Palatino Linotype", "Segoe MDL2 Assets", "Segoe Print", "Segoe Script", "Segoe UI", "Segoe UI Historic", "Segoe UI Emoji", "Segoe UI Symbol", "SimSun", "Sitka", "Sylfaen", "Symbol", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana", "Webdings", "Wingdings", "Yu Gothic"];
+  let macosxFonts = ["American Typewriter", "Andale Mono", "Arial", "Arial Black", "Arial Narrow", "Arial Rounded MT Bold", "Arial Unicode MS", "Avenir", "Avenir Next", "Avenir Next Condensed", "Baskerville", "Big Caslon", "Bodoni 72", "Bodoni 72 Oldstyle", "Bodoni 72 Smallcaps", "Bradley Hand", "Brush Script MT", "Chalkboard", "Chalkboard SE", "Chalkduster", "Charter", "Cochin", "Comic Sans MS", "Copperplate", "Courier", "Courier New", "Didot", "DIN Alternate", "DIN Condensed", "Futura", "Geneva", "Georgia", "Gill Sans", "Helvetica", "Helvetica Neue", "Herculanum", "Hoefler Text", "Impact", "Lucida Grande", "Luminari", "Marker Felt", "Menlo", "Microsoft Sans Serif", "Monaco", "Noteworthy", "Optima", "Palatino", "Papyrus", "Phosphate", "Rockwell", "Savoye LET", "SignPainter", "Skia", "Snell Roundhand", "Tahoma", "Times", "Times New Roman", "Trattatello", "Trebuchet MS", "Verdana", "Zapfino"];
+  let defaultFonts = ["Arial", "Brush Script MT", "Courier New", "Garamond", "Georgia", "Helvetica", "Tahoma", "Times New Roman", "Trebuchet MS", "Verdana"];
   // Check browser supports fonts checking
   if (document.fonts
-      && !document.fonts.check("12px '@$#%#$@")) {
-    document.fonts.ready.then(function() {
-        var availableFonts = [];
-        var allTestedFonts = windowsFonts.concat(macosxFonts);
-        for (var i = 0; i < allTestedFonts.length; i++) {
-          var fontName = allTestedFonts[i];
-          if (availableFonts.indexOf(fontName) < 0 && document.fonts.check("12px '" + fontName + "'")) {
-            availableFonts.push(fontName);
-          }
+    && !document.fonts.check("12px '@$#%#$@")) {
+    document.fonts.ready.then(() => {
+      let availableFonts = [];
+      let allTestedFonts = windowsFonts.concat(macosxFonts);
+      for (let i = 0; i < allTestedFonts.length; i++) {
+        let fontName = allTestedFonts[i];
+        if (availableFonts.indexOf(fontName) < 0 && document.fonts.check("12px '" + fontName + "'")) {
+          availableFonts.push(fontName);
         }
-        observer(availableFonts.sort());
-      });
+      }
+      observer(availableFonts.sort());
+    });
   } else if (OperatingSystem.isWindows()) {
     observer(windowsFonts);
   } else if (OperatingSystem.isMacOSX()) {
@@ -395,13 +400,20 @@ CoreTools.loadAvailableFontNames = function(observer) {
 }
 
 
+export { CoreTools };
+
+/**
+ * Used by SweetHome3D.js
+ */
+window.CoreTools = CoreTools;
+
 /**
  * Utilities for colors.
  * @class
  * @ignore
  * @author Renaud Pawlak
  */
-var ColorTools = {};
+let ColorTools = {};
 
 /**
  * Converts a color given as an int to a CSS string representation. For instance, 0 will be converted to #000000.
@@ -409,7 +421,7 @@ var ColorTools = {};
  * @param {number} color
  * @return {string} a CSS string
  */
-ColorTools.integerToHexadecimalString = function(color) {
+ColorTools.integerToHexadecimalString = color => {
   return "#" + ("00000" + (color & 0xFFFFFF).toString(16).toUpperCase()).slice(-6);
 }
 
@@ -418,15 +430,15 @@ ColorTools.integerToHexadecimalString = function(color) {
  * @param {string} a style containing a color as rgb(...) or rgba(...)
  * @return {string} the color as a string or an empty string if the given style was not parseable
  */
-ColorTools.styleToHexadecimalString = function(style) {
-  var prefix = "rgb(";
-  var index = style.indexOf(prefix);
+ColorTools.styleToHexadecimalString = style => {
+  let prefix = "rgb(";
+  let index = style.indexOf(prefix);
   if (index < 0) {
     prefix = "rgba(";
     index = style.indexOf(prefix);
   }
   if (index >= 0) {
-    var array = style.slice(prefix.length, style.indexOf(")")).split(",");
+    let array = style.slice(prefix.length, style.indexOf(")")).split(",");
     return ColorTools.integerToHexadecimalString((parseInt(array[0]) << 16) + (parseInt(array[1]) << 8) + parseInt(array[2]));
   }
   return "";
@@ -437,25 +449,25 @@ ColorTools.styleToHexadecimalString = function(style) {
  * @param {string} style a style containing a color as rgb(...) or rgba(...)
  * @return {number} the color as an integer or -1 if the given style was not parseable
  */
-ColorTools.styleToInteger = function(style) {
-  var prefix = "rgb(";
-  var index = style.indexOf(prefix);
+ColorTools.styleToInteger = style => {
+  let prefix = "rgb(";
+  let index = style.indexOf(prefix);
   if (index < 0) {
     prefix = "rgba(";
     index = style.indexOf(prefix);
   }
   if (index >= 0) {
-    var array = style.slice(prefix.length, style.indexOf(")")).split(",");
+    let array = style.slice(prefix.length, style.indexOf(")")).split(",");
     return (parseInt(array[0]) << 16) + (parseInt(array[1]) << 8) + parseInt(array[2]);
   }
   return -1;
 }
 
-ColorTools.isTransparent = function(style) {
-  var prefix = "rgba(";
-  var index = style.indexOf(prefix);
+ColorTools.isTransparent = style => {
+  let prefix = "rgba(";
+  let index = style.indexOf(prefix);
   if (index >= 0) {
-    var array = style.slice(prefix.length, style.indexOf(")")).split(",");
+    let array = style.slice(prefix.length, style.indexOf(")")).split(",");
     return parseFloat(array[3]) === 0;
   }
   return false;
@@ -466,7 +478,7 @@ ColorTools.isTransparent = function(style) {
  * @param {string} colorString color string under the format #RRGGBB
  * @return {number} the color as an integer or -1 if the given string was not parseable
  */
-ColorTools.hexadecimalStringToInteger = function(colorString) {
+ColorTools.hexadecimalStringToInteger = colorString => {
   if (colorString.indexOf("#") === 0 && (colorString.length === 7 || colorString.length === 9)) {
     colorString = colorString.slice(1);
     return (parseInt(colorString.slice(0, 2), 16) << 16) + (parseInt(colorString.slice(2, 4), 16) << 8) + parseInt(colorString.slice(4, 6), 16);
@@ -480,11 +492,12 @@ ColorTools.hexadecimalStringToInteger = function(colorString) {
  * @param {number} the alpha component (between 0 and 1)
  * @return {string} the color as an rgba description
  */
-ColorTools.toRGBAStyle = function(colorString, alpha) {
-  var c = ColorTools.hexadecimalStringToInteger(colorString);
+ColorTools.toRGBAStyle = (colorString, alpha) => {
+  let c = ColorTools.hexadecimalStringToInteger(colorString);
   return "rgba(" + ((c & 0xFF0000) >> 16) + "," + ((c & 0xFF00) >> 8) + "," + (c & 0xFF) + "," + alpha + ")";
 }
 
+export { ColorTools };
 
 /**
  * Utilities for images.
@@ -492,15 +505,15 @@ ColorTools.toRGBAStyle = function(colorString, alpha) {
  * @ignore
  * @author Louis Grignon
  */
-var ImageTools = {};
+export let ImageTools = {};
 
 /**
  * @param {HTMLImageElement} image
  * @return {boolean} true if image has alpha channel
  */
-ImageTools.isImageWithAlpha = function(image) {
-  var canvas = document.createElement("canvas");
-  var context = canvas.getContext("2d");
+ImageTools.isImageWithAlpha = image => {
+  let canvas = document.createElement("canvas");
+  let context = canvas.getContext("2d");
   canvas.width = image.width;
   canvas.height = image.height;
   context.drawImage(image, 0, 0, image.width, image.height);
@@ -513,11 +526,11 @@ ImageTools.isImageWithAlpha = function(image) {
  * @return {boolean} true if image has alpha channel
  * @private
  */
-ImageTools.isCanvasWithAlpha = function(canvas, context) {
+ImageTools.isCanvasWithAlpha = (canvas, context) => {
   context = context ? context : canvas.getContext("2d");
-  var data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  var hasAlphaPixels = false;
-  for (var i = 3, n = data.length; i < n; i += 4) {
+  let data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  let hasAlphaPixels = false;
+  for (let i = 3, n = data.length; i < n; i += 4) {
     if (data[i] < 255) {
       hasAlphaPixels = true;
       break;
@@ -533,16 +546,16 @@ ImageTools.isCanvasWithAlpha = function(canvas, context) {
  * @param {function(HTMLImageElement)} onsuccess called when resize succeeded, with resized image as a parameter
  * @param {string} [imageType] target image mime type, defaults to image/png
  */
-ImageTools.resize = function(image, targetWidth, targetHeight, onsuccess, imageType) {
-  var canvas = document.createElement('canvas');
+ImageTools.resize = (image, targetWidth, targetHeight, onsuccess, imageType) => {
+  let canvas = document.createElement('canvas');
   canvas.width = targetWidth;
   canvas.height = targetHeight;
-  var canvasContext = canvas.getContext('2d');
+  let canvasContext = canvas.getContext('2d');
   canvasContext.drawImage(image, 0, 0, targetWidth, targetHeight);
 
-  var resizedImage = new Image();
-  resizedImage.addEventListener("load", function () {
-      onsuccess(resizedImage);
-    });
+  let resizedImage = new Image();
+  resizedImage.addEventListener("load", () => {
+    onsuccess(resizedImage);
+  });
   resizedImage.src = canvas.toDataURL(imageType ? imageType : 'image/png');
 }

@@ -18,6 +18,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+import {
+  HomeController3D,
+  HomeFurnitureGroup,
+  ObserverCamera,
+} from './SweetHome3D';
+
+import { HomeComponent3D } from './HomeComponent3D';
+import { HomeRecorder } from './HomeRecorder';
+import { ModelLoader } from './ModelLoader';
+import { TextureManager } from './TextureManager';
+import { DefaultUserPreferences, UserPreferences } from './UserPreferences';
+import { OperatingSystem } from './URLContent';
+import { ZIPTools } from './URLContent';
+
 /**
  * Loads the home from the given URL and displays it in the 3D canvas with <code>canvasId</code>.
  * <code>params.navigationPanel</code> may be equal to <code>"none"</code>, <code>"default"</code> 
@@ -73,88 +87,88 @@ function viewHome(canvasId, homeUrl, onerror, onprogression, params) {
  *                      with no navigation panel. 
  */
 function viewHomeInOverlay(homeUrl, params) {
-  var widthByHeightRatio = 4 / 3;
+  let widthByHeightRatio = 4 / 3;
   if (params && params.widthByHeightRatio) {
     widthByHeightRatio = params.widthByHeightRatio;
   }
-  
+
   // Ensure no two overlays are displayed
   hideHomeOverlay();
-  
-  var overlayDiv = document.createElement("div");
+
+  const overlayDiv = document.createElement("div");
   overlayDiv.setAttribute("id", "viewerOverlay");
   overlayDiv.style.position = "absolute";
   overlayDiv.style.left = "0";
   overlayDiv.style.top = "0";
   overlayDiv.style.zIndex = "100";
   overlayDiv.style.background = "rgba(127, 127, 127, .5)";
-    
-  var bodyElement = document.getElementsByTagName("body").item(0);
+
+  const bodyElement = document.getElementsByTagName("body").item(0);
   bodyElement.insertBefore(overlayDiv, bodyElement.firstChild);
 
-  var homeViewDiv = document.createElement("div");
-  var divHTML =
-        '<canvas id="viewerCanvas" class="viewerComponent"  style="background-color: #CCCCCC; border: 1px solid gray; position: absolute; outline: none; touch-action: none" tabIndex="1"></canvas>'
-      + '<div id="viewerProgressDiv" style="position:absolute; width: 300px; background-color: rgba(128, 128, 128, 0.7); padding: 20px; border-radius: 25px">'
-      + '  <progress id="viewerProgress"  class="viewerComponent" value="0" max="200" style="width: 300px;"></progress>'
-      + '  <label id="viewerProgressLabel" class="viewerComponent" style="margin-top: 2px; margin-left: 10px; margin-right: 0px; display: block;"></label>'
-      + '</div>';
-  if (params 
-      && (params.aerialViewButtonText && params.virtualVisitButtonText 
-          || params.viewerControlsAdditionalHTML)) {
+  const homeViewDiv = document.createElement("div");
+  let divHTML =
+    '<canvas id="viewerCanvas" class="viewerComponent"  style="background-color: #CCCCCC; border: 1px solid gray; position: absolute; outline: none; touch-action: none" tabIndex="1"></canvas>'
+    + '<div id="viewerProgressDiv" style="position:absolute; width: 300px; background-color: rgba(128, 128, 128, 0.7); padding: 20px; border-radius: 25px">'
+    + '  <progress id="viewerProgress"  class="viewerComponent" value="0" max="200" style="width: 300px;"></progress>'
+    + '  <label id="viewerProgressLabel" class="viewerComponent" style="margin-top: 2px; margin-left: 10px; margin-right: 0px; display: block;"></label>'
+    + '</div>';
+  if (params
+    && (params.aerialViewButtonText && params.virtualVisitButtonText
+      || params.viewerControlsAdditionalHTML)) {
     divHTML += '<div id="viewerControls" style="position: absolute; padding: 10px; padding-top: 5px">';
     if (params.aerialViewButtonText && params.virtualVisitButtonText) {
-      divHTML += 
-            '   <input  id="aerialView" class="viewerComponent" name="cameraType" type="radio" style="visibility: hidden;"/>'
-          + '      <label class="viewerComponent" for="aerialView" style="visibility: hidden;">' + params.aerialViewButtonText + '</label>'
-          + '   <input  id="virtualVisit" class="viewerComponent" name="cameraType" type="radio" style="visibility: hidden;">'
-          + '      <label class="viewerComponent" for="virtualVisit" style="visibility: hidden;">' + params.virtualVisitButtonText + '</label>'
-          + '   <select id="levelsAndCameras" class="viewerComponent" style="visibility: hidden;"></select>';
+      divHTML +=
+        '   <input  id="aerialView" class="viewerComponent" name="cameraType" type="radio" style="visibility: hidden;"/>'
+        + '      <label class="viewerComponent" for="aerialView" style="visibility: hidden;">' + params.aerialViewButtonText + '</label>'
+        + '   <input  id="virtualVisit" class="viewerComponent" name="cameraType" type="radio" style="visibility: hidden;">'
+        + '      <label class="viewerComponent" for="virtualVisit" style="visibility: hidden;">' + params.virtualVisitButtonText + '</label>'
+        + '   <select id="levelsAndCameras" class="viewerComponent" style="visibility: hidden;"></select>';
     }
     if (params.viewerControlsAdditionalHTML) {
       divHTML += params.viewerControlsAdditionalHTML;
     }
-    divHTML += '</div>';  
+    divHTML += '</div>';
   }
   homeViewDiv.innerHTML = divHTML;
   overlayDiv.appendChild(homeViewDiv);
 
   // Create close button image
-  var closeButtonImage = new Image();
+  const closeButtonImage = new Image();
   closeButtonImage.src = ZIPTools.getScriptFolder() + "close.png";
   closeButtonImage.style.position = "absolute";
   overlayDiv.appendChild(closeButtonImage);
-  
-  overlayDiv.escKeyListener = function(ev) {
-      if (ev.keyCode === 27) {
-        hideHomeOverlay();
-      }
-    };
+
+  overlayDiv.escKeyListener = ev => {
+    if (ev.keyCode === 27) {
+      hideHomeOverlay();
+    }
+  };
   document.addEventListener("keydown", overlayDiv.escKeyListener);
   closeButtonImage.addEventListener("click", hideHomeOverlay);
-  var mouseActionsListener = {
-      mousePressed : function(ev) {
-        mouseActionsListener.mousePressedInOverlay = true;
-      },
-      mouseClicked : function(ev) {
-        if (mouseActionsListener.mousePressedInOverlay) {
-          delete mouseActionsListener.mousePressedInOverlay;
-          hideHomeOverlay();
-        }
+  const mouseActionsListener = {
+    mousePressed: function (ev) {
+      mouseActionsListener.mousePressedInOverlay = true;
+    },
+    mouseClicked: function (ev) {
+      if (mouseActionsListener.mousePressedInOverlay) {
+        delete mouseActionsListener.mousePressedInOverlay;
+        hideHomeOverlay();
       }
-    };
-  overlayDiv.addEventListener("mousedown", mouseActionsListener.mousePressed); 
-  overlayDiv.addEventListener("click", mouseActionsListener.mouseClicked); 
-  overlayDiv.addEventListener("touchmove", 
-      function(ev) {
-        ev.preventDefault();
-      });
-  
+    }
+  };
+  overlayDiv.addEventListener("mousedown", mouseActionsListener.mousePressed);
+  overlayDiv.addEventListener("click", mouseActionsListener.mouseClicked);
+  overlayDiv.addEventListener("touchmove",
+    (ev) => {
+      ev.preventDefault();
+    });
+
   // Place canvas in the middle of the window
-  var windowWidth  = self.innerWidth;
-  var windowHeight = self.innerHeight;
-  var pageWidth = document.documentElement.clientWidth;
-  var pageHeight = document.documentElement.clientHeight;
+  const windowWidth = self.innerWidth;
+  const windowHeight = self.innerHeight;
+  let pageWidth = document.documentElement.clientWidth;
+  let pageHeight = document.documentElement.clientHeight;
   if (bodyElement && bodyElement.scrollWidth) {
     if (bodyElement.scrollWidth > pageWidth) {
       pageWidth = bodyElement.scrollWidth;
@@ -163,16 +177,16 @@ function viewHomeInOverlay(homeUrl, params) {
       pageHeight = bodyElement.scrollHeight;
     }
   }
-  var pageXOffset = self.pageXOffset ? self.pageXOffset : 0;
-  var pageYOffset = self.pageYOffset ? self.pageYOffset : 0;
-  
+  const pageXOffset = self.pageXOffset ? self.pageXOffset : 0;
+  const pageYOffset = self.pageYOffset ? self.pageYOffset : 0;
+
   overlayDiv.style.height = Math.max(pageHeight, windowHeight) + "px";
   overlayDiv.style.width = pageWidth <= windowWidth
-      ? "100%"
-      : pageWidth + "px";
+    ? "100%"
+    : pageWidth + "px";
   overlayDiv.style.display = "block";
 
-  var canvas = document.getElementById("viewerCanvas");
+  const canvas = document.getElementById("viewerCanvas");
   if (windowWidth < windowHeight * widthByHeightRatio) {
     canvas.width = 0.9 * windowWidth;
     canvas.height = 0.9 * windowWidth / widthByHeightRatio;
@@ -182,101 +196,105 @@ function viewHomeInOverlay(homeUrl, params) {
   }
   canvas.style.width = canvas.width + "px";
   canvas.style.height = canvas.height + "px";
-  var canvasLeft = pageXOffset + (windowWidth - canvas.width - 10) / 2;
+  const canvasLeft = pageXOffset + (windowWidth - canvas.width - 10) / 2;
   canvas.style.left = canvasLeft + "px";
-  var canvasTop = pageYOffset + (windowHeight - canvas.height - 10) / 2;
+  const canvasTop = pageYOffset + (windowHeight - canvas.height - 10) / 2;
   canvas.style.top = canvasTop + "px";
-      
+
   // Place close button at top right of the canvas
   closeButtonImage.style.left = (canvasLeft + canvas.width - 5) + "px";
   closeButtonImage.style.top = (canvasTop - 10) + "px";
-  
+
   // Place controls below the canvas
-  var controlsDiv = document.getElementById("viewerControls");
+  const controlsDiv = document.getElementById("viewerControls");
   if (controlsDiv) {
     controlsDiv.style.left = (canvasLeft - 10) + "px";
     controlsDiv.style.top = (canvasTop + canvas.height) + "px";
-    controlsDiv.addEventListener("mousedown", 
-        function(ev) {
-          // Ignore in overlay mouse clicks on controls
-          ev.stopPropagation();
-        });
+    controlsDiv.addEventListener("mousedown",
+      (ev) => {
+        // Ignore in overlay mouse clicks on controls
+        ev.stopPropagation();
+      });
   }
-  
+
   // Place progress in the middle of the canvas
-  var progressDiv = document.getElementById("viewerProgressDiv");
+  const progressDiv = document.getElementById("viewerProgressDiv");
   progressDiv.style.left = (canvasLeft + (canvas.width - 300) / 2) + "px";
   progressDiv.style.top = (canvasTop + (canvas.height - 50) / 2) + "px";
   progressDiv.style.visibility = "visible";
-  
-  var onerror = function(err) {
-      hideHomeOverlay();
-      if (err == "No WebGL") {
-        var errorMessage = "Sorry, your browser doesn't support WebGL.";
-        if (params.noWebGLSupportError) {
-          errorMessage = params.noWebGLSupportError;
-        }
-        alert(errorMessage);
-      } else if (typeof err === "string" && err.indexOf("No Home.xml entry") == 0) {
-        var errorMessage = "Ensure your home file was saved with Sweet Home 3D 5.3 or a newer version.";
-        if (params.missingHomeXmlEntryError) {
-          errorMessage = params.missingHomeXmlEntryError;
-        }
-        alert(errorMessage);        
-      } else {
-        console.log(err.stack);
-        alert("Error: " + (err.message  ? err.constructor.name + " " +  err.message  : err));
+
+  const onerror = err => {
+    hideHomeOverlay();
+    if (err == "No WebGL") {
+      let errorMessage = "Sorry, your browser doesn't support WebGL.";
+      if (params.noWebGLSupportError) {
+        errorMessage = params.noWebGLSupportError;
       }
-    };
-  var onprogression = function(part, info, percentage) {
-      var progress = document.getElementById("viewerProgress");
-      if (progress) {
-        var text = null;
-        if (part === HomeRecorder.READING_HOME) {
-          progress.value = percentage * 100;
-          info = info.substring(info.lastIndexOf('/') + 1);
-          text = params && params.readingHomeText
-              ? params.readingHomeText : part;
-        } else if (part === ModelLoader.READING_MODEL) {
-          progress.value = 100 + percentage * 100;
-          if (percentage === 1) {
-            document.getElementById("viewerProgressDiv").style.visibility = "hidden";
-          }
-          text = params && params.readingModelText
-              ? params.readingModelText : part;
-        }
-        
-        if (text !== null) {
-          document.getElementById("viewerProgressLabel").innerHTML = 
-              (percentage ? Math.floor(percentage * 100) + "% " : "") + text + " " + info;
-        }
+      alert(errorMessage);
+    } else if (typeof err === "string" && err.indexOf("No Home.xml entry") == 0) {
+      let errorMessage = "Ensure your home file was saved with Sweet Home 3D 5.3 or a newer version.";
+      if (params.missingHomeXmlEntryError) {
+        errorMessage = params.missingHomeXmlEntryError;
       }
-    };
- 
+      alert(errorMessage);
+    } else {
+      console.log(err.stack);
+      alert("Error: " + (err.message ? err.constructor.name + " " + err.message : err));
+    }
+  };
+  const onprogression = (part, info, percentage) => {
+    const progress = document.getElementById("viewerProgress");
+    if (progress) {
+      let text = null;
+      if (part === HomeRecorder.READING_HOME) {
+        progress.value = percentage * 100;
+        info = info.substring(info.lastIndexOf('/') + 1);
+        text = params && params.readingHomeText
+          ? params.readingHomeText : part;
+      } else if (part === ModelLoader.READING_MODEL) {
+        progress.value = 100 + percentage * 100;
+        if (percentage === 1) {
+          document.getElementById("viewerProgressDiv").style.visibility = "hidden";
+        }
+        text = params && params.readingModelText
+          ? params.readingModelText : part;
+      }
+
+      if (text !== null) {
+        document.getElementById("viewerProgressLabel").innerHTML =
+          (percentage ? Math.floor(percentage * 100) + "% " : "") + text + " " + info;
+      }
+    }
+  };
+
   // Display home in canvas 3D
-  var homePreviewComponentContructor = HomePreviewComponent;
+  let homePreviewComponentContructor = HomePreviewComponent;
   if (params) {
     if (params.homePreviewComponentContructor) {
       homePreviewComponentContructor = params.homePreviewComponentContructor;
     }
     if (params.aerialViewButtonText && params.virtualVisitButtonText) {
       canvas.homePreviewComponent = new homePreviewComponentContructor(
-          "viewerCanvas", homeUrl, onerror, onprogression, 
-          {roundsPerMinute : params.roundsPerMinute, 
-           navigationPanel : params.navigationPanel,
-           aerialViewButtonId : "aerialView", 
-           virtualVisitButtonId : "virtualVisit", 
-           levelsAndCamerasListId : "levelsAndCameras",
-           level : params.level,
-           selectableLevels : params.selectableLevels,
-           camera: params.camera,
-           selectableCameras : params.selectableCameras,
-           activateCameraSwitchKey : params.activateCameraSwitchKey});
+        "viewerCanvas", homeUrl, onerror, onprogression,
+        {
+          roundsPerMinute: params.roundsPerMinute,
+          navigationPanel: params.navigationPanel,
+          aerialViewButtonId: "aerialView",
+          virtualVisitButtonId: "virtualVisit",
+          levelsAndCamerasListId: "levelsAndCameras",
+          level: params.level,
+          selectableLevels: params.selectableLevels,
+          camera: params.camera,
+          selectableCameras: params.selectableCameras,
+          activateCameraSwitchKey: params.activateCameraSwitchKey
+        });
     } else {
       canvas.homePreviewComponent = new homePreviewComponentContructor(
-          "viewerCanvas", homeUrl, onerror, onprogression, 
-          {roundsPerMinute : params.roundsPerMinute,
-           navigationPanel : params.navigationPanel});
+        "viewerCanvas", homeUrl, onerror, onprogression,
+        {
+          roundsPerMinute: params.roundsPerMinute,
+          navigationPanel: params.navigationPanel
+        });
     }
   } else {
     canvas.homePreviewComponent = new homePreviewComponentContructor("viewerCanvas", homeUrl, onerror, onprogression);
@@ -288,10 +306,10 @@ function viewHomeInOverlay(homeUrl, params) {
  * @private
  */
 function hideHomeOverlay() {
-  var overlayDiv = document.getElementById("viewerOverlay");
+  const overlayDiv = document.getElementById("viewerOverlay");
   if (overlayDiv) {
     // Free caches and remove listeners bound to global objects 
-    var canvas = document.getElementById("viewerCanvas");
+    const canvas = document.getElementById("viewerCanvas");
     if (canvas.homePreviewComponent) {
       canvas.homePreviewComponent.dispose();
     }
@@ -325,34 +343,36 @@ function hideHomeOverlay() {
  * @constructor
  * @author Emmanuel Puybaret
  */
-function HomePreviewComponent(canvasId, homeUrl, onerror, onprogression, params) {
-  if (document.getElementById(canvasId)) {
-    var previewComponent = this;
-    this.createHomeRecorder().readHome(homeUrl,
+class HomePreviewComponent {
+  constructor(canvasId, homeUrl, onerror, onprogression, params) {
+    if (document.getElementById(canvasId)) {
+      const previewComponent = this;
+      this.createHomeRecorder().readHome(homeUrl,
         {
-          homeLoaded : function(home) {
+          homeLoaded: function (home) {
             try {
-              var canvas = document.getElementById(canvasId);
+              const canvas = document.getElementById(canvasId);
               if (canvas) {
-                if (params  
-                    && params.navigationPanel != "none"  
-                    && params.navigationPanel != "default") {
+                if (params
+                  && params.navigationPanel != "none"
+                  && params.navigationPanel != "default") {
                   // Create class with a getLocalizedString() method that returns the navigationPanel in parameter
-                  function UserPreferencesWithNavigationPanel(navigationPanel) {
-                    DefaultUserPreferences.call(this);
-                    this.navigationPanel = navigationPanel;
-                  }
-                  UserPreferencesWithNavigationPanel.prototype = Object.create(DefaultUserPreferences.prototype);
-                  UserPreferencesWithNavigationPanel.prototype.constructor = UserPreferencesWithNavigationPanel;
+                  class UserPreferencesWithNavigationPanel extends DefaultUserPreferences {
+                    constructor(navigationPanel) {
+                      super();
+                      this.navigationPanel = navigationPanel;
+                    }
 
-                  UserPreferencesWithNavigationPanel.prototype.getLocalizedString = function(resourceClass, resourceKey, resourceParameters) {
-                    // Return navigationPanel in parameter for the navigationPanel.innerHTML resource requested by HomeComponent3D
-                    if (resourceClass === HomeComponent3D && resourceKey == "navigationPanel.innerHTML") {
-                      return this.navigationPanel;
-                    } else {
-                      return UserPreferences.prototype.getLocalizedString.call(this, resourceClass, resourceKey, resourceParameters);
+                    getLocalizedString(resourceClass, resourceKey, resourceParameters) {
+                      // Return navigationPanel in parameter for the navigationPanel.innerHTML resource requested by HomeComponent3D
+                      if (resourceClass === HomeComponent3D && resourceKey == "navigationPanel.innerHTML") {
+                        return this.navigationPanel;
+                      } else {
+                        return UserPreferences.prototype.getLocalizedString.call(this, resourceClass, resourceKey, resourceParameters);
+                      }
                     }
                   }
+
                   previewComponent.preferences = new UserPreferencesWithNavigationPanel(params.navigationPanel);
                 } else {
                   previewComponent.preferences = new DefaultUserPreferences();
@@ -361,99 +381,101 @@ function HomePreviewComponent(canvasId, homeUrl, onerror, onprogression, params)
                 previewComponent.controller = new HomeController3D(home, previewComponent.preferences);
                 // Create component 3D with loaded home
                 previewComponent.component3D = previewComponent.createComponent3D(
-                    canvasId, home, previewComponent.preferences, previewComponent.controller);
+                  canvasId, home, previewComponent.preferences, previewComponent.controller);
                 previewComponent.prepareComponent(canvasId, onprogression,
-                    params ? {roundsPerMinute : params.roundsPerMinute, 
-                              navigationPanelVisible : params.navigationPanel && params.navigationPanel != "none",
-                              aerialViewButtonId : params.aerialViewButtonId, 
-                              virtualVisitButtonId : params.virtualVisitButtonId, 
-                              levelsAndCamerasListId : params.levelsAndCamerasListId,
-                              level : params.level,
-                              selectableLevels : params.selectableLevels,
-                              camera : params.camera,
-                              selectableCameras : params.selectableCameras,
-                              activateCameraSwitchKey : params.activateCameraSwitchKey}
-                           : undefined);
+                  params ? {
+                    roundsPerMinute: params.roundsPerMinute,
+                    navigationPanelVisible: params.navigationPanel && params.navigationPanel != "none",
+                    aerialViewButtonId: params.aerialViewButtonId,
+                    virtualVisitButtonId: params.virtualVisitButtonId,
+                    levelsAndCamerasListId: params.levelsAndCamerasListId,
+                    level: params.level,
+                    selectableLevels: params.selectableLevels,
+                    camera: params.camera,
+                    selectableCameras: params.selectableCameras,
+                    activateCameraSwitchKey: params.activateCameraSwitchKey
+                  }
+                    : undefined);
               }
             } catch (ex) {
               onerror(ex);
             }
           },
-          homeError : function(err) {
+          homeError: function (err) {
             onerror(err);
           },
-          progression : onprogression
+          progression: onprogression
         });
-  } else {
-    onerror("No canvas with id equal to " + canvasId);
+    } else {
+      onerror("No canvas with id equal to " + canvasId);
+    }
   }
-}
 
-/**
- * Returns the recorder that will load the home from the given URL.
- * @return {HomeRecorder}
- * @protected
- * @ignore
- */
-HomePreviewComponent.prototype.createHomeRecorder = function() { 
-  return new HomeRecorder();
-}
-
-/**
- * Returns the component 3D that will display the given home.
- * @param {string} canvasId  the value of the id attribute of the 3D canvas  
- * @return {HomeComponent3D}
- * @protected
- * @ignore
- */
-HomePreviewComponent.prototype.createComponent3D = function(canvasId) { 
-  return new HomeComponent3D(canvasId, this.getHome(), this.getUserPreferences(), null, this.getController());
-}
-
-/**
- * Prepares this component and its user interface.
- * @param {string} canvasId  the value of the id attribute of the 3D canvas 
- * @param onprogression callback with (part, info, percentage) parameters called during the download of the home 
- *                      and the 3D models it displays.
- * @param {{roundsPerMinute: number, 
- *          navigationPanelVisible: boolean,
- *          aerialViewButtonId: string, 
- *          virtualVisitButtonId: string, 
- *          levelsAndCamerasListId: string,
- *          level: string,
- *          selectableLevels: string[],
- *          camera: string,
- *          selectableCameras: string[],
- *          activateCameraSwitchKey: boolean}} [params] the ids of the buttons and other information displayed in the user interface. 
- *                      If not provided, controls won't be managed if any, no animation and navigation panel won't be displayed. 
- * @protected
- * @ignore
- */
-HomePreviewComponent.prototype.prepareComponent = function(canvasId, onprogression, params) { 
-  var roundsPerMinute = params && params.roundsPerMinute ? params.roundsPerMinute : 0;
-  this.startRotationAnimationAfterLoading = roundsPerMinute != 0;
-  if (params && typeof params.navigationPanelVisible) {
-    this.getUserPreferences().setNavigationPanelVisible(params.navigationPanelVisible);
+  /**
+   * Returns the recorder that will load the home from the given URL.
+   * @return {HomeRecorder}
+   * @protected
+   * @ignore
+   */
+  createHomeRecorder() {
+    return new HomeRecorder();
   }
-  var home = this.getHome();
-  if (home.structure) {
-    // Make always all levels visible if walls and rooms structure can be modified
-    home.getEnvironment().setAllLevelsVisible(true);
-  } else {
-    // Make all levels always visible when observer camera is used
-    var setAllLevelsVisibleWhenObserverCamera = function() {
+
+  /**
+   * Returns the component 3D that will display the given home.
+   * @param {string} canvasId  the value of the id attribute of the 3D canvas  
+   * @return {HomeComponent3D}
+   * @protected
+   * @ignore
+   */
+  createComponent3D(canvasId) {
+    return new HomeComponent3D(canvasId, this.getHome(), this.getUserPreferences(), null, this.getController());
+  }
+
+  /**
+   * Prepares this component and its user interface.
+   * @param {string} canvasId  the value of the id attribute of the 3D canvas 
+   * @param onprogression callback with (part, info, percentage) parameters called during the download of the home 
+   *                      and the 3D models it displays.
+   * @param {{roundsPerMinute: number, 
+   *          navigationPanelVisible: boolean,
+   *          aerialViewButtonId: string, 
+   *          virtualVisitButtonId: string, 
+   *          levelsAndCamerasListId: string,
+   *          level: string,
+   *          selectableLevels: string[],
+   *          camera: string,
+   *          selectableCameras: string[],
+   *          activateCameraSwitchKey: boolean}} [params] the ids of the buttons and other information displayed in the user interface. 
+   *                      If not provided, controls won't be managed if any, no animation and navigation panel won't be displayed. 
+   * @protected
+   * @ignore
+   */
+  prepareComponent(canvasId, onprogression, params) {
+    const roundsPerMinute = params && params.roundsPerMinute ? params.roundsPerMinute : 0;
+    this.startRotationAnimationAfterLoading = roundsPerMinute != 0;
+    if (params && typeof params.navigationPanelVisible) {
+      this.getUserPreferences().setNavigationPanelVisible(params.navigationPanelVisible);
+    }
+    const home = this.getHome();
+    if (home.structure) {
+      // Make always all levels visible if walls and rooms structure can be modified
+      home.getEnvironment().setAllLevelsVisible(true);
+    } else {
+      // Make all levels always visible when observer camera is used
+      const setAllLevelsVisibleWhenObserverCamera = () => {
         home.getEnvironment().setAllLevelsVisible(home.getCamera() instanceof ObserverCamera);
       };
-    setAllLevelsVisibleWhenObserverCamera();
-    home.addPropertyChangeListener("CAMERA", setAllLevelsVisibleWhenObserverCamera);
-  }
-  home.getEnvironment().setObserverCameraElevationAdjusted(true);
-  
-  this.trackFurnitureModels(onprogression, roundsPerMinute);
-  
-  // Configure camera type buttons and shortcut
-  var previewComponent = this;
-  var cameraTypeButtonsUpdater = function() {
+      setAllLevelsVisibleWhenObserverCamera();
+      home.addPropertyChangeListener("CAMERA", setAllLevelsVisibleWhenObserverCamera);
+    }
+    home.getEnvironment().setObserverCameraElevationAdjusted(true);
+
+    this.trackFurnitureModels(onprogression, roundsPerMinute);
+
+    // Configure camera type buttons and shortcut
+    const previewComponent = this;
+    const cameraTypeButtonsUpdater = () => {
       previewComponent.stopRotationAnimation();
       if (params && params.aerialViewButtonId && params.virtualVisitButtonId) {
         if (home.getCamera() === home.getTopCamera()) {
@@ -463,378 +485,379 @@ HomePreviewComponent.prototype.prepareComponent = function(canvasId, onprogressi
         }
       }
     };
-  var toggleCamera = function() {
+    const toggleCamera = () => {
       previewComponent.startRotationAnimationAfterLoading = false;
-      home.setCamera(home.getCamera() === home.getTopCamera() 
-          ? home.getObserverCamera() 
-          : home.getTopCamera());
+      home.setCamera(home.getCamera() === home.getTopCamera()
+        ? home.getObserverCamera()
+        : home.getTopCamera());
       cameraTypeButtonsUpdater();
     };
-  var canvas = document.getElementById(canvasId);
-  if (params === undefined 
+    const canvas = document.getElementById(canvasId);
+    if (params === undefined
       || params.activateCameraSwitchKey === undefined
       || params.activateCameraSwitchKey) {
-    canvas.addEventListener("keydown", 
-          function(ev) {
-        if (ev.keyCode === 32) { // Space bar
-          toggleCamera();
-        }
-      });
-  }
-  if (params && params.aerialViewButtonId && params.virtualVisitButtonId) {
-    var aerialViewButton = document.getElementById(params.aerialViewButtonId);
-    aerialViewButton.addEventListener("change", 
-        function() {
-          previewComponent.startRotationAnimationAfterLoading = false;
-          home.setCamera(aerialViewButton.checked 
-              ? home.getTopCamera() 
-              : home.getObserverCamera());
+      canvas.addEventListener("keydown",
+        (ev) => {
+          if (ev.keyCode === 32) { // Space bar
+            toggleCamera();
+          }
         });
-    var virtualVisitButton = document.getElementById(params.virtualVisitButtonId);
-    virtualVisitButton.addEventListener("change", 
-        function() {
+    }
+    if (params && params.aerialViewButtonId && params.virtualVisitButtonId) {
+      const aerialViewButton = document.getElementById(params.aerialViewButtonId);
+      aerialViewButton.addEventListener("change",
+        () => {
           previewComponent.startRotationAnimationAfterLoading = false;
-          home.setCamera(virtualVisitButton.checked 
-              ? home.getObserverCamera() 
-              : home.getTopCamera());
+          home.setCamera(aerialViewButton.checked
+            ? home.getTopCamera()
+            : home.getObserverCamera());
         });
-    cameraTypeButtonsUpdater();
-    // Make radio buttons and their label visible
-    aerialViewButton.style.visibility = "visible";
-    virtualVisitButton.style.visibility = "visible";
-    var makeLabelVisible = function(buttonId) {
-        var labels = document.getElementsByTagName("label");
-        for (var i = 0; i < labels.length; i++) {
-          if (labels [i].getAttribute("for") == buttonId) {
-            labels [i].style.visibility = "visible";
+      const virtualVisitButton = document.getElementById(params.virtualVisitButtonId);
+      virtualVisitButton.addEventListener("change",
+        () => {
+          previewComponent.startRotationAnimationAfterLoading = false;
+          home.setCamera(virtualVisitButton.checked
+            ? home.getObserverCamera()
+            : home.getTopCamera());
+        });
+      cameraTypeButtonsUpdater();
+      // Make radio buttons and their label visible
+      aerialViewButton.style.visibility = "visible";
+      virtualVisitButton.style.visibility = "visible";
+      const makeLabelVisible = buttonId => {
+        const labels = document.getElementsByTagName("label");
+        for (let i = 0; i < labels.length; i++) {
+          if (labels[i].getAttribute("for") == buttonId) {
+            labels[i].style.visibility = "visible";
           }
         }
-      }
-    makeLabelVisible(params.aerialViewButtonId);
-    makeLabelVisible(params.virtualVisitButtonId);
-    home.addPropertyChangeListener("CAMERA", 
-        function() {
+      };
+      makeLabelVisible(params.aerialViewButtonId);
+      makeLabelVisible(params.virtualVisitButtonId);
+      home.addPropertyChangeListener("CAMERA",
+        () => {
           cameraTypeButtonsUpdater();
           if (home.structure && params && params.levelsAndCamerasListId) {
             document.getElementById(params.levelsAndCamerasListId).disabled = home.getCamera() === home.getTopCamera();
           }
         });
-  } 
+    }
 
-  if (params && params.level) {
-    var levels = home.getLevels();
-    if (levels.length > 0) {
-      for (var i = 0; i < levels.length; i++) {
-        var level = levels [i];
-        if (level.isViewable()
+    if (params && params.level) {
+      var levels = home.getLevels();
+      if (levels.length > 0) {
+        for (var i = 0; i < levels.length; i++) {
+          var level = levels[i];
+          if (level.isViewable()
             && level.getName() == params.level) {
-          home.setSelectedLevel(level);
-          break;
-        }
-      }
-    }
-  }
-  
-  if (params && params.camera) {
-    var cameras = home.getStoredCameras();
-    if (cameras.length > 0) {
-      for (var i = 0; i < cameras.length; i++) {
-        var camera = cameras [i];
-        if (camera.getName() == params.camera) {
-          this.getController().goToCamera(camera);
-          break;
-        }
-      }
-    }
-  }
-  
-  if (params && params.levelsAndCamerasListId) {
-    var levelsAndCamerasList = document.getElementById(params.levelsAndCamerasListId);
-    levelsAndCamerasList.disabled = home.structure !== undefined && home.getCamera() === home.getTopCamera();
-    var levels = home.getLevels();
-    if (levels.length > 0) {
-      for (var i = 0; i < levels.length; i++) {
-        var level = levels [i];
-        if (level.isViewable()
-            && (!params.selectableLevels 
-                || params.selectableLevels.indexOf(level.getName()) >= 0)) {
-          var option = document.createElement("option");
-          option.text  = level.getName();
-          option.level = level;
-          levelsAndCamerasList.add(option);
-          if (level === home.getSelectedLevel()) {
-            levelsAndCamerasList.selectedIndex = levelsAndCamerasList.options.length - 1;
+            home.setSelectedLevel(level);
+            break;
           }
         }
       }
     }
-      
-    if (params.selectableCameras !== undefined) {
+
+    if (params && params.camera) {
       var cameras = home.getStoredCameras();
       if (cameras.length > 0) {
-        var addSeparator = levelsAndCamerasList.options.length > 0;
         for (var i = 0; i < cameras.length; i++) {
-          var camera = cameras [i];
-          if (params.selectableCameras.indexOf(camera.getName()) >= 0) {
-            if (addSeparator) {
-              levelsAndCamerasList.add(document.createElement("option"));
-              addSeparator = false;
-            }
-            var option = document.createElement("option");
-            option.text  = camera.getName();
-            option.camera = camera;
-            levelsAndCamerasList.add(option);
+          var camera = cameras[i];
+          if (camera.getName() == params.camera) {
+            this.getController().goToCamera(camera);
+            break;
           }
         }
       }
     }
-        
-    if (levelsAndCamerasList.options.length > 1) {
-      var controller = this.getController();
-      levelsAndCamerasList.addEventListener("change", 
-          function() {
+
+    if (params && params.levelsAndCamerasListId) {
+      const levelsAndCamerasList = document.getElementById(params.levelsAndCamerasListId);
+      levelsAndCamerasList.disabled = home.structure !== undefined && home.getCamera() === home.getTopCamera();
+      var levels = home.getLevels();
+      if (levels.length > 0) {
+        for (var i = 0; i < levels.length; i++) {
+          var level = levels[i];
+          if (level.isViewable()
+            && (!params.selectableLevels
+              || params.selectableLevels.indexOf(level.getName()) >= 0)) {
+            var option = document.createElement("option");
+            option.text = level.getName();
+            option.level = level;
+            levelsAndCamerasList.add(option);
+            if (level === home.getSelectedLevel()) {
+              levelsAndCamerasList.selectedIndex = levelsAndCamerasList.options.length - 1;
+            }
+          }
+        }
+      }
+
+      if (params.selectableCameras !== undefined) {
+        var cameras = home.getStoredCameras();
+        if (cameras.length > 0) {
+          let addSeparator = levelsAndCamerasList.options.length > 0;
+          for (var i = 0; i < cameras.length; i++) {
+            var camera = cameras[i];
+            if (params.selectableCameras.indexOf(camera.getName()) >= 0) {
+              if (addSeparator) {
+                levelsAndCamerasList.add(document.createElement("option"));
+                addSeparator = false;
+              }
+              var option = document.createElement("option");
+              option.text = camera.getName();
+              option.camera = camera;
+              levelsAndCamerasList.add(option);
+            }
+          }
+        }
+      }
+
+      if (levelsAndCamerasList.options.length > 1) {
+        var controller = this.getController();
+        levelsAndCamerasList.addEventListener("change",
+          () => {
             previewComponent.startRotationAnimationAfterLoading = false;
-            var selectedOption = levelsAndCamerasList.options [levelsAndCamerasList.selectedIndex];
+            const selectedOption = levelsAndCamerasList.options[levelsAndCamerasList.selectedIndex];
             if (selectedOption.level !== undefined) {
               home.setSelectedLevel(selectedOption.level);
             } else if (selectedOption.camera !== undefined) {
               controller.goToCamera(selectedOption.camera);
-            }  
+            }
           });
-      levelsAndCamerasList.style.visibility = "visible";
+        levelsAndCamerasList.style.visibility = "visible";
+      }
     }
-  }
-  
-  if (roundsPerMinute) {
-    var controller = this.getController();
-    controller.goToCamera(home.getTopCamera());
-    controller.rotateCameraPitch(Math.PI / 6 - home.getCamera().getPitch());
-    controller.moveCamera(10000);
-    controller.moveCamera(-50);
-    this.clickListener = function(ev) {
+
+    if (roundsPerMinute) {
+      var controller = this.getController();
+      controller.goToCamera(home.getTopCamera());
+      controller.rotateCameraPitch(Math.PI / 6 - home.getCamera().getPitch());
+      controller.moveCamera(10000);
+      controller.moveCamera(-50);
+      this.clickListener = ev => {
         previewComponent.startRotationAnimationAfterLoading = false;
         previewComponent.stopRotationAnimation();
       };
-    canvas.addEventListener("keydown", this.clickListener);
-    if (OperatingSystem.isInternetExplorerOrLegacyEdge()
-        && window.PointerEvent) {
-      // Multi touch support for IE and Edge
-      canvas.addEventListener("pointerdown", this.clickListener);
-      canvas.addEventListener("pointermove", this.clickListener);
-    } else {
-      canvas.addEventListener("mousedown", this.clickListener);
-      canvas.addEventListener("touchstart",  this.clickListener);
-      canvas.addEventListener("touchmove",  this.clickListener);
-    }
-    var elements = this.component3D.getSimulatedKeyElements(document.getElementsByTagName("body").item(0));
-    for (var i = 0; i < elements.length; i++) {
+      canvas.addEventListener("keydown", this.clickListener);
       if (OperatingSystem.isInternetExplorerOrLegacyEdge()
-          && window.PointerEvent) {
-        elements [i].addEventListener("pointerdown", this.clickListener);
+        && window.PointerEvent) {
+        // Multi touch support for IE and Edge
+        canvas.addEventListener("pointerdown", this.clickListener);
+        canvas.addEventListener("pointermove", this.clickListener);
       } else {
-        elements [i].addEventListener("mousedown", this.clickListener);
+        canvas.addEventListener("mousedown", this.clickListener);
+        canvas.addEventListener("touchstart", this.clickListener);
+        canvas.addEventListener("touchmove", this.clickListener);
       }
-    }
-    this.visibilityChanged = function(ev) {
+      const elements = this.component3D.getSimulatedKeyElements(document.getElementsByTagName("body").item(0));
+      for (var i = 0; i < elements.length; i++) {
+        if (OperatingSystem.isInternetExplorerOrLegacyEdge()
+          && window.PointerEvent) {
+          elements[i].addEventListener("pointerdown", this.clickListener);
+        } else {
+          elements[i].addEventListener("mousedown", this.clickListener);
+        }
+      }
+      this.visibilityChanged = ev => {
         if (document.visibilityState == "hidden") {
           previewComponent.stopRotationAnimation();
         }
       }
-    document.addEventListener("visibilitychange", this.visibilityChanged);
-    var canvasBounds = canvas.getBoundingClientRect();
-    // Request focus if canvas is fully visible
-    if (canvasBounds.top >= 0 && canvasBounds.bottom <= self.innerHeight) {
-      canvas.focus();
-    }
-  }
-}
-
-/**
- * Returns the home displayed by this component.
- * @return {Home}
- */
-HomePreviewComponent.prototype.getHome = function() {
-  return this.home;
-}
-
-/**
- * Returns the component 3D that displays the home of this component.
- * @return {HomeComponent3D}
- */
-HomePreviewComponent.prototype.getComponent3D = function() {
-  return this.component3D;
-}  
-
-/**
- * Returns the controller that manages changes in the home bound to this component.
- * @return {HomeController3D}
- */
-HomePreviewComponent.prototype.getController = function() {
-  return this.controller;
-}  
-
-/**
- * Returns the user preferences used by this component.
- * @return {UserPreferences}
- */
-HomePreviewComponent.prototype.getUserPreferences = function() {
-  return this.preferences;
-}
-
-/**
- * Tracks furniture models loading to dispose unneeded files and data once read.
- * @private
- */
-HomePreviewComponent.prototype.trackFurnitureModels = function(onprogression, roundsPerMinute) {
-  var loadedFurniture = [];
-  var loadedJars = {};
-  var loadedModels = {};
-  var home = this.getHome();
-  var furniture = home.getFurniture();          
-  for (var i = 0; i < furniture.length; i++) { 
-    var piece = furniture [i];
-    var pieces = [];
-    if (piece instanceof HomeFurnitureGroup) {
-      var groupFurniture = piece.getAllFurniture();
-      for (var j = 0; j < groupFurniture.length; j++) {
-        var childPiece = groupFurniture [j];
-        if (!(childPiece instanceof HomeFurnitureGroup)) {
-          pieces.push(childPiece);
-        }
-      }
-    } else {
-      pieces.push(piece);
-    }
-    loadedFurniture.push.apply(loadedFurniture, pieces);
-    for (var j = 0; j < pieces.length; j++) { 
-      var model = pieces [j].getModel();
-      if (model.isJAREntry()) {
-        var jar = model.getJAREntryURL();
-        if (jar in loadedJars) {
-          loadedJars [jar]++;
-        } else {
-          loadedJars [jar] = 1;
-        }
-      }
-      var modelUrl = model.getURL();
-      if (modelUrl in loadedModels) {
-        loadedModels [modelUrl]++;
-      } else {
-        loadedModels [modelUrl] = 1;
+      document.addEventListener("visibilitychange", this.visibilityChanged);
+      const canvasBounds = canvas.getBoundingClientRect();
+      // Request focus if canvas is fully visible
+      if (canvasBounds.top >= 0 && canvasBounds.bottom <= self.innerHeight) {
+        canvas.focus();
       }
     }
   }
 
-  if (loadedFurniture.length === 0) {
-    onprogression(ModelLoader.READING_MODEL, undefined, 1);
-  } else {
-    // Add an observer that will close ZIP files and free geometries once all models are loaded
-    var modelsCount = 0;
-    var previewComponent = this;
-    for (var i = 0; i < loadedFurniture.length; i++) {
-      var managerCall = function(piece) {
-        ModelManager.getInstance().loadModel(piece.getModel(), false, {
-          modelUpdated : function(modelRoot) {
-            var model = piece.getModel();
-            if (model.isJAREntry()) {
-              var jar = model.getJAREntryURL();
-              if (--loadedJars [jar] === 0) {
-                ZIPTools.disposeZIP(jar);
-                delete loadedJars [jar];
-              }
-            }
-            var modelUrl = model.getURL();
-            if (--loadedModels [modelUrl] === 0) {
-              ModelManager.getInstance().unloadModel(model);
-              delete loadedModels [modelUrl];
-            }
-            onprogression(ModelLoader.READING_MODEL, piece.getName(), ++modelsCount / loadedFurniture.length);
-            if (modelsCount === loadedFurniture.length) {
-              // Home and its models fully loaded
-              // Free all other geometries (background, structure...)  
-              previewComponent.component3D.disposeGeometries();
-              loadedFurniture = [];
-              if (previewComponent.startRotationAnimationAfterLoading) {
-                delete previewComponent.startRotationAnimationAfterLoading;
-                previewComponent.startRotationAnimation(roundsPerMinute); 
-              }
-            }
-          },        
-          modelError : function(ex) {
-            this.modelUpdated();
+  /**
+   * Returns the home displayed by this component.
+   * @return {Home}
+   */
+  getHome() {
+    return this.home;
+  }
+
+  /**
+   * Returns the component 3D that displays the home of this component.
+   * @return {HomeComponent3D}
+   */
+  getComponent3D() {
+    return this.component3D;
+  }
+
+  /**
+   * Returns the controller that manages changes in the home bound to this component.
+   * @return {HomeController3D}
+   */
+  getController() {
+    return this.controller;
+  }
+
+  /**
+   * Returns the user preferences used by this component.
+   * @return {UserPreferences}
+   */
+  getUserPreferences() {
+    return this.preferences;
+  }
+
+  /**
+   * Tracks furniture models loading to dispose unneeded files and data once read.
+   * @private
+   */
+  trackFurnitureModels(onprogression, roundsPerMinute) {
+    let loadedFurniture = [];
+    const loadedJars = {};
+    const loadedModels = {};
+    const home = this.getHome();
+    const furniture = home.getFurniture();
+    for (var i = 0; i < furniture.length; i++) {
+      const piece = furniture[i];
+      const pieces = [];
+      if (piece instanceof HomeFurnitureGroup) {
+        const groupFurniture = piece.getAllFurniture();
+        for (var j = 0; j < groupFurniture.length; j++) {
+          const childPiece = groupFurniture[j];
+          if (!(childPiece instanceof HomeFurnitureGroup)) {
+            pieces.push(childPiece);
           }
-        });
-      };
-      managerCall(loadedFurniture [i]);
-    }
-  }
-}
-
-/**
- * Stops animation, removes listeners bound to global objects and clears this component.
- * This method should be called to free resources in the browser when this component is not needed anymore.
- */
-HomePreviewComponent.prototype.dispose = function() {
-  this.stopRotationAnimation();
-  if (this.component3D) {
-    if (this.clickListener) {
-      // Remove listeners bound to global objects
-      document.removeEventListener("visibilitychange", this.visibilityChanged);
-      var elements = this.component3D.getSimulatedKeyElements(document.getElementsByTagName("body").item(0));
-      for (var i = 0; i < elements.length; i++) {
-        if (OperatingSystem.isInternetExplorerOrLegacyEdge()
-            && window.PointerEvent) {
-          elements [i].removeEventListener("pointerdown", this.clickListener);
+        }
+      } else {
+        pieces.push(piece);
+      }
+      loadedFurniture.push.apply(loadedFurniture, pieces);
+      for (var j = 0; j < pieces.length; j++) {
+        const model = pieces[j].getModel();
+        if (model.isJAREntry()) {
+          const jar = model.getJAREntryURL();
+          if (jar in loadedJars) {
+            loadedJars[jar]++;
+          } else {
+            loadedJars[jar] = 1;
+          }
+        }
+        const modelUrl = model.getURL();
+        if (modelUrl in loadedModels) {
+          loadedModels[modelUrl]++;
         } else {
-          elements [i].removeEventListener("mousedown", this.clickListener);
+          loadedModels[modelUrl] = 1;
         }
       }
     }
-    this.component3D.dispose();
-  }
-}
 
-/**
- * Starts rotation animation.
- * @param {number} [roundsPerMinute]  the rotation speed in rounds per minute, 1rpm if missing
- */
-HomePreviewComponent.prototype.startRotationAnimation = function(roundsPerMinute) {
-  this.roundsPerMinute = roundsPerMinute !== undefined ? roundsPerMinute : 1;
-  if (!this.rotationAnimationStarted) {
-    this.rotationAnimationStarted = true;
-    this.animate();
-  }
-}
-
-/**
- * @private
- */
-HomePreviewComponent.prototype.animate = function() {
-  if (this.rotationAnimationStarted) {
-    var now = Date.now();
-    if (this.lastRotationAnimationTime !== undefined) {
-      var angularSpeed = this.roundsPerMinute * 2 * Math.PI / 60000; 
-      var yawDelta = ((now - this.lastRotationAnimationTime) * angularSpeed) % (2 * Math.PI);
-      yawDelta -= this.home.getCamera().getYaw() - this.lastRotationAnimationYaw;
-      if (yawDelta > 0) {
-        this.controller.rotateCameraYaw(yawDelta);
+    if (loadedFurniture.length === 0) {
+      onprogression(ModelLoader.READING_MODEL, undefined, 1);
+    } else {
+      // Add an observer that will close ZIP files and free geometries once all models are loaded
+      let modelsCount = 0;
+      const previewComponent = this;
+      for (var i = 0; i < loadedFurniture.length; i++) {
+        const managerCall = piece => {
+          ModelManager.getInstance().loadModel(piece.getModel(), false, {
+            modelUpdated: function (modelRoot) {
+              const model = piece.getModel();
+              if (model.isJAREntry()) {
+                const jar = model.getJAREntryURL();
+                if (--loadedJars[jar] === 0) {
+                  ZIPTools.disposeZIP(jar);
+                  delete loadedJars[jar];
+                }
+              }
+              const modelUrl = model.getURL();
+              if (--loadedModels[modelUrl] === 0) {
+                ModelManager.getInstance().unloadModel(model);
+                delete loadedModels[modelUrl];
+              }
+              onprogression(ModelLoader.READING_MODEL, piece.getName(), ++modelsCount / loadedFurniture.length);
+              if (modelsCount === loadedFurniture.length) {
+                // Home and its models fully loaded
+                // Free all other geometries (background, structure...)  
+                previewComponent.component3D.disposeGeometries();
+                loadedFurniture = [];
+                if (previewComponent.startRotationAnimationAfterLoading) {
+                  delete previewComponent.startRotationAnimationAfterLoading;
+                  previewComponent.startRotationAnimation(roundsPerMinute);
+                }
+              }
+            },
+            modelError: function (ex) {
+              this.modelUpdated();
+            }
+          });
+        };
+        managerCall(loadedFurniture[i]);
       }
     }
-    this.lastRotationAnimationTime = now;
-    this.lastRotationAnimationYaw = this.home.getCamera().getYaw();
-    var previewComponent = this;
-    requestAnimationFrame(
-        function() {
+  }
+
+  /**
+   * Stops animation, removes listeners bound to global objects and clears this component.
+   * This method should be called to free resources in the browser when this component is not needed anymore.
+   */
+  dispose() {
+    this.stopRotationAnimation();
+    if (this.component3D) {
+      if (this.clickListener) {
+        // Remove listeners bound to global objects
+        document.removeEventListener("visibilitychange", this.visibilityChanged);
+        const elements = this.component3D.getSimulatedKeyElements(document.getElementsByTagName("body").item(0));
+        for (let i = 0; i < elements.length; i++) {
+          if (OperatingSystem.isInternetExplorerOrLegacyEdge()
+            && window.PointerEvent) {
+            elements[i].removeEventListener("pointerdown", this.clickListener);
+          } else {
+            elements[i].removeEventListener("mousedown", this.clickListener);
+          }
+        }
+      }
+      this.component3D.dispose();
+    }
+  }
+
+  /**
+   * Starts rotation animation.
+   * @param {number} [roundsPerMinute]  the rotation speed in rounds per minute, 1rpm if missing
+   */
+  startRotationAnimation(roundsPerMinute) {
+    this.roundsPerMinute = roundsPerMinute !== undefined ? roundsPerMinute : 1;
+    if (!this.rotationAnimationStarted) {
+      this.rotationAnimationStarted = true;
+      this.animate();
+    }
+  }
+
+  /**
+   * @private
+   */
+  animate() {
+    if (this.rotationAnimationStarted) {
+      const now = Date.now();
+      if (this.lastRotationAnimationTime !== undefined) {
+        const angularSpeed = this.roundsPerMinute * 2 * Math.PI / 60000;
+        let yawDelta = ((now - this.lastRotationAnimationTime) * angularSpeed) % (2 * Math.PI);
+        yawDelta -= this.home.getCamera().getYaw() - this.lastRotationAnimationYaw;
+        if (yawDelta > 0) {
+          this.controller.rotateCameraYaw(yawDelta);
+        }
+      }
+      this.lastRotationAnimationTime = now;
+      this.lastRotationAnimationYaw = this.home.getCamera().getYaw();
+      const previewComponent = this;
+      requestAnimationFrame(
+        () => {
           previewComponent.animate();
         });
+    }
   }
-}
 
-/**
- * Stops the running rotation animation.
- */
-HomePreviewComponent.prototype.stopRotationAnimation = function() {
-  delete this.lastRotationAnimationTime;
-  delete this.lastRotationAnimationYaw;
-  delete this.rotationAnimationStarted;
+  /**
+   * Stops the running rotation animation.
+   */
+  stopRotationAnimation() {
+    delete this.lastRotationAnimationTime;
+    delete this.lastRotationAnimationYaw;
+    delete this.rotationAnimationStarted;
+  }
 }

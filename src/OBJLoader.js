@@ -18,13 +18,15 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-// Requires core.js
-//          gl-matrix-min.js
-//          jszip.min.js
-//          scene3d.js
-//          Triangulator.js
-//          URLContent.js
-//          ModelLoader.js
+import { vec2, vec3, } from 'gl-matrix';
+
+import { ModelLoader } from './ModelLoader';
+import {
+  IndexedLineArray3D,
+  Appearance3D, Group3D,
+  Shape3D, GeometryInfo3D,
+  IncorrectFormat3DException,
+} from './scene3d';
 
 /**
  * Creates an instance of an OBJ + MTL loader.
@@ -32,12 +34,13 @@
  * @extends ModelLoader
  * @author Emmanuel Puybaret
  */
-function OBJLoader() {
-  ModelLoader.call(this, "obj");
+export class OBJLoader extends ModelLoader {
+  constructor() {
+    super("obj");
 
-  if (OBJLoader.defaultAppearances === null) {
-    OBJLoader.defaultAppearances = {};
-    OBJLoader.parseMaterial(
+    if (OBJLoader.defaultAppearances === null) {
+      OBJLoader.defaultAppearances = {};
+      OBJLoader.parseMaterial(
         // Description of the default Java 3D materials at MTL format 
         // (copied from com.sun.j3d.loaders.objectfile.DefaultMaterials class with inverse d transparency factor)
         "newmtl amber\n" +
@@ -937,44 +940,48 @@ function OBJLoader() {
         "illum 3\n" +
         "Ns 60.0000\n" +
         "sharpness 60.0000\n", OBJLoader.defaultAppearances, null, null);
+    }
   }
-}
-OBJLoader.prototype = Object.create(ModelLoader.prototype);
-OBJLoader.prototype.constructor = OBJLoader;
 
-OBJLoader.defaultAppearances = null;
-
-/**
- * Creates a new scene from the parsed <code>groups</code> and calls onmodelcreated asynchronously or 
- * returns the created scene if onmodelcreated is null.
- * <code>groups</code> is empty after method call.
- * @private
- */
-OBJLoader.prototype.createScene = function(vertices, textureCoordinates, normals, groups, appearances, onmodelcreated, onprogression) {
-  var sceneRoot = new Group3D();
-  if (onmodelcreated === null) {
-    onprogression(ModelLoader.BUILDING_MODEL, "", 0);
-    for (var key in groups) {
-      this.createGroupShapes(vertices, textureCoordinates, normals, groups [key], appearances, sceneRoot);
-    }
-    onprogression(ModelLoader.BUILDING_MODEL, "", 1);
-    return sceneRoot;
-  } else {
-    var groupsGeometryCount = 0;
-    for (var key in groups) {
-      groupsGeometryCount += groups [key].geometries.length;
-    }
-    var builtGeometryCount = 0;
-    var loader = this;
-    var sceneBuilder = function() {
+  /**
+   * Creates a new scene from the parsed <code>groups</code> and calls onmodelcreated asynchronously or 
+   * returns the created scene if onmodelcreated is null.
+   * <code>groups</code> is empty after method call.
+   * @private
+   */
+  createScene(
+    vertices,
+    textureCoordinates,
+    normals,
+    groups,
+    appearances,
+    onmodelcreated,
+    onprogression
+  ) {
+    let sceneRoot = new Group3D();
+    if (onmodelcreated === null) {
+      onprogression(ModelLoader.BUILDING_MODEL, "", 0);
+      for (var key in groups) {
+        this.createGroupShapes(vertices, textureCoordinates, normals, groups[key], appearances, sceneRoot);
+      }
+      onprogression(ModelLoader.BUILDING_MODEL, "", 1);
+      return sceneRoot;
+    } else {
+      let groupsGeometryCount = 0;
+      for (var key in groups) {
+        groupsGeometryCount += groups[key].geometries.length;
+      }
+      let builtGeometryCount = 0;
+      let loader = this;
+      let sceneBuilder = () => {
         onprogression(ModelLoader.BUILDING_MODEL, "", groupsGeometryCount !== 0 ? builtGeometryCount / groupsGeometryCount : 0);
-        var start = Date.now();
-        for (var key in groups) {
-          loader.createGroupShapes(vertices, textureCoordinates, normals, groups [key], appearances, sceneRoot);
-          builtGeometryCount += groups [key].geometries.length;
+        let start = Date.now();
+        for (let key in groups) {
+          loader.createGroupShapes(vertices, textureCoordinates, normals, groups[key], appearances, sceneRoot);
+          builtGeometryCount += groups[key].geometries.length;
           delete groups[key];
-          if (builtGeometryCount < groupsGeometryCount 
-              && Date.now() - start > 10) {
+          if (builtGeometryCount < groupsGeometryCount
+            && Date.now() - start > 10) {
             // Continue shapes creation later
             setTimeout(sceneBuilder, 0);
             return;
@@ -982,209 +989,211 @@ OBJLoader.prototype.createScene = function(vertices, textureCoordinates, normals
         }
         // All shapes are created
         setTimeout(
-            function() {
-              onprogression(ModelLoader.BUILDING_MODEL, "", 1);
-              onmodelcreated(sceneRoot);
-            }, 0);
+          () => {
+            onprogression(ModelLoader.BUILDING_MODEL, "", 1);
+            onmodelcreated(sceneRoot);
+          }, 0);
       };
-    sceneBuilder();
+      sceneBuilder();
+    }
   }
-}
 
-/**
- * Creates the 3D shapes matching the parsed data of a group, and adds them to <code>sceneRoot</code>.
- * @private
- */
-OBJLoader.prototype.createGroupShapes = function(vertices, textureCoordinates, normals, group, appearances, sceneRoot) {
-  var geometries = group.geometries;
-  if (geometries.length > 0) {
-    var i = 0;
-    while (i < geometries.length) {
-      var firstGeometry = geometries [i];
-      var firstGeometryHasTextureCoordinateIndices = firstGeometry.textureCoordinateIndices.length > 0;
-      var firstFaceHasNormalIndices = (firstGeometry instanceof OBJLoader.OBJFace) && firstGeometry.normalIndices.length > 0;
-      var firstFaceIsSmooth = (firstGeometry instanceof OBJLoader.OBJFace) && firstGeometry.smooth;
-      
-      var firstGeometryMaterial = firstGeometry.material;
-      var appearance = OBJLoader.getAppearance(appearances, firstGeometryMaterial);
-      // Search how many geometries share the same characteristics 
-      var max = i;
-      while (++max < geometries.length) {
-        var geometry = geometries [max];
-        var material = geometry.material;
-        if ((geometry.constructor !== firstGeometry.constructor)
+  /**
+   * Creates the 3D shapes matching the parsed data of a group, and adds them to <code>sceneRoot</code>.
+   * @private
+   */
+  createGroupShapes(vertices, textureCoordinates, normals, group, appearances, sceneRoot) {
+    let geometries = group.geometries;
+    if (geometries.length > 0) {
+      let i = 0;
+      while (i < geometries.length) {
+        let firstGeometry = geometries[i];
+        let firstGeometryHasTextureCoordinateIndices = firstGeometry.textureCoordinateIndices.length > 0;
+        let firstFaceHasNormalIndices = (firstGeometry instanceof OBJLoader.OBJFace) && firstGeometry.normalIndices.length > 0;
+        let firstFaceIsSmooth = (firstGeometry instanceof OBJLoader.OBJFace) && firstGeometry.smooth;
+
+        let firstGeometryMaterial = firstGeometry.material;
+        let appearance = OBJLoader.getAppearance(appearances, firstGeometryMaterial);
+        // Search how many geometries share the same characteristics 
+        let max = i;
+        while (++max < geometries.length) {
+          let geometry = geometries[max];
+          let material = geometry.material;
+          if ((geometry.constructor !== firstGeometry.constructor)
             || material === null && firstGeometryMaterial !== null
             || material !== null && OBJLoader.getAppearance(appearances, material) !== appearance
             || (firstFaceIsSmooth ^ ((geometry instanceof OBJLoader.OBJFace) && geometry.smooth))
             || (firstGeometryHasTextureCoordinateIndices ^ geometry.textureCoordinateIndices.length > 0)
             || (firstFaceHasNormalIndices ^ ((geometry instanceof OBJLoader.OBJFace) && geometry.normalIndices.length > 0))) {
-          break;
-        }
-      }
-      
-      // Clone appearance to avoid sharing it
-      if (appearance !== null) {
-        appearance = appearance.clone();
-      }
-  
-      // Create indices arrays for the geometries with an index between i and max
-      var geometryCount = max - i;
-      var coordinatesIndices = [];
-      var stripCounts = []; 
-      var onlyTriangles = true;
-      for (var j = 0; j < geometryCount; j++) {
-        var geometryVertexIndices = geometries [i + j].vertexIndices;
-        coordinatesIndices.push.apply(coordinatesIndices, geometryVertexIndices);
-        stripCounts.push(geometryVertexIndices.length);
-        if (onlyTriangles && geometryVertexIndices.length !== 3) {
-          onlyTriangles = false;
-        }
-      }
-      var textureCoordinateIndices = [];
-      if (firstGeometryHasTextureCoordinateIndices) {
-        for (var j = 0; j < geometryCount; j++) {
-          textureCoordinateIndices.push.apply(textureCoordinateIndices, geometries [i + j].textureCoordinateIndices);
-        }
-      }
-      
-      var geometryArray;
-      if (firstGeometry instanceof OBJLoader.OBJFace) {
-        var normalIndices = [];
-        if (firstFaceHasNormalIndices) {
-          for (var j = 0; j < geometryCount; j++) {
-            normalIndices.push.apply(normalIndices, geometries [i + j].normalIndices);
+            break;
           }
         }
-        var geometryInfo = new GeometryInfo3D(onlyTriangles  
-            ? GeometryInfo3D.TRIANGLE_ARRAY  
-            : GeometryInfo3D.POLYGON_ARRAY);
-        geometryInfo.setCoordinates(vertices);
-        geometryInfo.setCoordinateIndices(coordinatesIndices);
-        geometryInfo.setNormals(normals);
-        geometryInfo.setNormalIndices(normalIndices);
-        geometryInfo.setTextureCoordinates(textureCoordinates);
-        geometryInfo.setTextureCoordinateIndices(textureCoordinateIndices);
-        geometryInfo.setStripCounts(stripCounts);
-        if (!firstFaceHasNormalIndices) {
-          geometryInfo.setCreaseAngle(firstFaceIsSmooth  ? Math.PI / 2  : 0);
-          geometryInfo.setGeneratedNormals(true);
+
+        // Clone appearance to avoid sharing it
+        if (appearance !== null) {
+          appearance = appearance.clone();
         }
-        geometryArray = geometryInfo.getIndexedGeometryArray();                  
-      } else { // Line
-        var lineCoordinatesIndices = [];
-        var lineTextureCoordinateIndices = [];
-        for (var j = 0, index = 0; j < geometryCount; index += stripCounts [j], j++) {
-          for (var k = 0; k < stripCounts [j] - 1; k++) {
-            lineCoordinatesIndices.push(coordinatesIndices [index + k]);
-            lineCoordinatesIndices.push(coordinatesIndices [index + k + 1]);
-            if (textureCoordinateIndices.length > 0) {
-              lineTextureCoordinateIndices.push(textureCoordinateIndices [index + k]);
-              lineTextureCoordinateIndices.push(textureCoordinateIndices [index + k + 1]);
+
+        // Create indices arrays for the geometries with an index between i and max
+        let geometryCount = max - i;
+        let coordinatesIndices = [];
+        let stripCounts = [];
+        let onlyTriangles = true;
+        for (var j = 0; j < geometryCount; j++) {
+          let geometryVertexIndices = geometries[i + j].vertexIndices;
+          coordinatesIndices.push.apply(coordinatesIndices, geometryVertexIndices);
+          stripCounts.push(geometryVertexIndices.length);
+          if (onlyTriangles && geometryVertexIndices.length !== 3) {
+            onlyTriangles = false;
+          }
+        }
+        let textureCoordinateIndices = [];
+        if (firstGeometryHasTextureCoordinateIndices) {
+          for (var j = 0; j < geometryCount; j++) {
+            textureCoordinateIndices.push.apply(textureCoordinateIndices, geometries[i + j].textureCoordinateIndices);
+          }
+        }
+
+        let geometryArray;
+        if (firstGeometry instanceof OBJLoader.OBJFace) {
+          let normalIndices = [];
+          if (firstFaceHasNormalIndices) {
+            for (var j = 0; j < geometryCount; j++) {
+              normalIndices.push.apply(normalIndices, geometries[i + j].normalIndices);
             }
           }
-        }
-        geometryArray = new IndexedLineArray3D(vertices, lineCoordinatesIndices, 
+          let geometryInfo = new GeometryInfo3D(onlyTriangles
+            ? GeometryInfo3D.TRIANGLE_ARRAY
+            : GeometryInfo3D.POLYGON_ARRAY);
+          geometryInfo.setCoordinates(vertices);
+          geometryInfo.setCoordinateIndices(coordinatesIndices);
+          geometryInfo.setNormals(normals);
+          geometryInfo.setNormalIndices(normalIndices);
+          geometryInfo.setTextureCoordinates(textureCoordinates);
+          geometryInfo.setTextureCoordinateIndices(textureCoordinateIndices);
+          geometryInfo.setStripCounts(stripCounts);
+          if (!firstFaceHasNormalIndices) {
+            geometryInfo.setCreaseAngle(firstFaceIsSmooth ? Math.PI / 2 : 0);
+            geometryInfo.setGeneratedNormals(true);
+          }
+          geometryArray = geometryInfo.getIndexedGeometryArray();
+        } else { // Line
+          let lineCoordinatesIndices = [];
+          let lineTextureCoordinateIndices = [];
+          for (let j = 0, index = 0; j < geometryCount; index += stripCounts[j], j++) {
+            for (let k = 0; k < stripCounts[j] - 1; k++) {
+              lineCoordinatesIndices.push(coordinatesIndices[index + k]);
+              lineCoordinatesIndices.push(coordinatesIndices[index + k + 1]);
+              if (textureCoordinateIndices.length > 0) {
+                lineTextureCoordinateIndices.push(textureCoordinateIndices[index + k]);
+                lineTextureCoordinateIndices.push(textureCoordinateIndices[index + k + 1]);
+              }
+            }
+          }
+          geometryArray = new IndexedLineArray3D(vertices, lineCoordinatesIndices,
             textureCoordinates, lineTextureCoordinateIndices);
+        }
+
+        let shape = new Shape3D(geometryArray, appearance);
+        sceneRoot.addChild(shape);
+        shape.setName(group.name + (i === 0 ? "" : "_" + i));
+        i = max;
       }
-      
-      var shape = new Shape3D(geometryArray, appearance);   
-      sceneRoot.addChild(shape);
-      shape.setName(group.name + (i === 0 ? "" : "_" + i));
-      i = max;
     }
   }
-}
 
-/**
- * Returns the appearance matching a given material. 
- * @private
- */
-OBJLoader.getAppearance = function(appearances, material) {
-  var appearance = undefined;
-  if (material !== null) {
-    appearance = appearances [material];
-  }
-  if (appearance === undefined) {
-    appearance = OBJLoader.defaultAppearances ["default"];
-  }
-  return appearance;
-}
-
-/**
- * Parses the given OBJ content and stores the materials it describes in appearances attribute 
- * of <code>modelContext</code>.
- * @protected
- */
-OBJLoader.prototype.parseDependencies = function(objContent, objEntryName, zip, modelContext) {
-  modelContext.appearances = {};
-  for (var k in OBJLoader.defaultAppearances) {
-    var appearance = OBJLoader.defaultAppearances [k];
-    modelContext.appearances [appearance.getName()] = appearance;
-  }
-
-  try {
-    var mtllibIndex = objContent.indexOf("mtllib");
-    while (mtllibIndex !== -1) {
-      var endOfLine = mtllibIndex + 6;
-      while (endOfLine < objContent.length
-          && objContent.charAt(endOfLine) != '\n'
-            && objContent.charAt(endOfLine) != '\r') {
-        endOfLine++;
-      }
-      var line = objContent.substring(mtllibIndex, endOfLine).trim();
-      var mtllib = line.substring(7, line.length).trim();
-      this.parseMaterialEntry(mtllib, modelContext.appearances, objEntryName, zip);
-      
-      mtllibIndex = objContent.indexOf("mtllib", endOfLine);
+  /**
+   * Returns the appearance matching a given material. 
+   * @private
+   */
+  static getAppearance(appearances, material) {
+    let appearance = undefined;
+    if (material !== null) {
+      appearance = appearances[material];
     }
-  } catch (ex) {
+    if (appearance === undefined) {
+      appearance = OBJLoader.defaultAppearances["default"];
+    }
+    return appearance;
+  }
+
+  /**
+   * Parses the given OBJ content and stores the materials it describes in appearances attribute 
+   * of <code>modelContext</code>.
+   * @protected
+   */
+  parseDependencies(objContent, objEntryName, zip, modelContext) {
     modelContext.appearances = {};
-  }
-}
-
-/**
- * Parses the given OBJ content and calls onmodelloaded asynchronously or 
- * returns the scene it describes if onmodelloaded is null.
- * @protected
- */
-OBJLoader.prototype.parseEntryScene = function(objContent, objEntryName, zip, modelContext, onmodelloaded, onprogression) {
-  var vertices = [];
-  var textureCoordinates = [];
-  var normals = [];
-  var defaultGroup = new OBJLoader.OBJGroup("default");
-  var groups = {"default" : defaultGroup};
-  var materialGroupsWithNormals = {};
-  var currentObjects = {group : defaultGroup,
-                        material : "default", 
-                        smooth : false}; 
-  
-  if (onmodelloaded === null) {
-    try {
-      onprogression(ModelLoader.PARSING_MODEL, objEntryName, 0);
-      for (var startOfLine = 0; startOfLine <= objContent.length; ) {
-        startOfLine = this.parseObjectLine(objContent, startOfLine, vertices, textureCoordinates, normals, groups,
-            materialGroupsWithNormals, currentObjects);
-      } 
-      onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
-      return this.createScene(vertices, textureCoordinates, normals, groups, modelContext.appearances, null, onprogression);
-    } catch (ex) {
-      onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
-      return this.createScene([], [], [], {}, modelContext.appearances, null, onprogression);
+    for (let k in OBJLoader.defaultAppearances) {
+      let appearance = OBJLoader.defaultAppearances[k];
+      modelContext.appearances[appearance.getName()] = appearance;
     }
-  } else {
-    var startOfLine = 0;
-    var loader = this;
-    var objEntryParser = function() {
+
+    try {
+      let mtllibIndex = objContent.indexOf("mtllib");
+      while (mtllibIndex !== -1) {
+        let endOfLine = mtllibIndex + 6;
+        while (endOfLine < objContent.length
+          && objContent.charAt(endOfLine) != '\n'
+          && objContent.charAt(endOfLine) != '\r') {
+          endOfLine++;
+        }
+        let line = objContent.substring(mtllibIndex, endOfLine).trim();
+        let mtllib = line.substring(7, line.length).trim();
+        this.parseMaterialEntry(mtllib, modelContext.appearances, objEntryName, zip);
+
+        mtllibIndex = objContent.indexOf("mtllib", endOfLine);
+      }
+    } catch (ex) {
+      modelContext.appearances = {};
+    }
+  }
+
+  /**
+   * Parses the given OBJ content and calls onmodelloaded asynchronously or 
+   * returns the scene it describes if onmodelloaded is null.
+   * @protected
+   */
+  parseEntryScene(objContent, objEntryName, zip, modelContext, onmodelloaded, onprogression) {
+    let vertices = [];
+    let textureCoordinates = [];
+    let normals = [];
+    let defaultGroup = new OBJLoader.OBJGroup("default");
+    let groups = { "default": defaultGroup };
+    let materialGroupsWithNormals = {};
+    let currentObjects = {
+      group: defaultGroup,
+      material: "default",
+      smooth: false
+    };
+
+    if (onmodelloaded === null) {
+      try {
+        onprogression(ModelLoader.PARSING_MODEL, objEntryName, 0);
+        for (var startOfLine = 0; startOfLine <= objContent.length;) {
+          startOfLine = this.parseObjectLine(objContent, startOfLine, vertices, textureCoordinates, normals, groups,
+            materialGroupsWithNormals, currentObjects);
+        }
+        onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
+        return this.createScene(vertices, textureCoordinates, normals, groups, modelContext.appearances, null, onprogression);
+      } catch (ex) {
+        onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
+        return this.createScene([], [], [], {}, modelContext.appearances, null, onprogression);
+      }
+    } else {
+      var startOfLine = 0;
+      let loader = this;
+      let objEntryParser = () => {
         try {
           onprogression(ModelLoader.PARSING_MODEL, objEntryName, startOfLine / objContent.length);
-          var minimumIndexBeforeTimeout = startOfLine + 200000; 
-          var start = Date.now();
+          let minimumIndexBeforeTimeout = startOfLine + 200000;
+          let start = Date.now();
           while (startOfLine <= objContent.length) {
             startOfLine = loader.parseObjectLine(objContent, startOfLine, vertices, textureCoordinates, normals, groups,
-                materialGroupsWithNormals, currentObjects);
-            if (startOfLine <= objContent.length 
-                && startOfLine > minimumIndexBeforeTimeout // Don't call Date.now() after parsing each line!
-                && Date.now() - start > 10) { 
+              materialGroupsWithNormals, currentObjects);
+            if (startOfLine <= objContent.length
+              && startOfLine > minimumIndexBeforeTimeout // Don't call Date.now() after parsing each line!
+              && Date.now() - start > 10) {
               // Continue entry parsing later
               setTimeout(objEntryParser, 0);
               return;
@@ -1192,351 +1201,375 @@ OBJLoader.prototype.parseEntryScene = function(objContent, objEntryName, zip, mo
           }
           // Parsing is finished
           setTimeout(
-              function() {
-                onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
-                loader.createScene(vertices, textureCoordinates, normals, groups, modelContext.appearances, 
-                    function(scene) { 
-                      onmodelloaded(scene); 
-                    }, 
-                    onprogression);
-              }, 0);
+            () => {
+              onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
+              loader.createScene(vertices, textureCoordinates, normals, groups, modelContext.appearances,
+                (scene) => {
+                  onmodelloaded(scene);
+                },
+                onprogression);
+            }, 0);
         } catch (ex) {
           onprogression(ModelLoader.PARSING_MODEL, objEntryName, 1);
           loader.createScene([], [], [], {}, modelContext.appearances, onmodelloaded, onprogression);
         }
       };
-    objEntryParser();
+      objEntryParser();
+    }
   }
-}
 
-/**
- * @private
- */
-OBJLoader.prototype.parseObjectLine = function(objContent, startOfLine, vertices, textureCoordinates, normals, groups,
-                                               materialGroupsWithNormals, currentObjects) {
-  var endOfLine = startOfLine + 1;
-  while (endOfLine < objContent.length
-         && objContent.charAt(endOfLine) != '\n'
-         && objContent.charAt(endOfLine) != '\r') {
-    endOfLine++;
-  }
-  var line = objContent.substring(startOfLine, endOfLine);
-  if (line.indexOf("v") === 0 || line.indexOf("f ") === 0 || line.indexOf("l ") === 0) {
-    // Append to line next lines if it ends by a back slash
-    while (line.charAt(line.length - 1) === '\\') {
-      // Remove back slash
-      line = line.substring(0, line.length - 1) + " ";
-      // Read next line
-      startOfLine = endOfLine + 1;
-      if (startOfLine < objContent.length
+  /**
+   * @private
+   */
+  parseObjectLine(
+    objContent,
+    startOfLine,
+    vertices,
+    textureCoordinates,
+    normals,
+    groups,
+    materialGroupsWithNormals,
+    currentObjects
+  ) {
+    let endOfLine = startOfLine + 1;
+    while (endOfLine < objContent.length
+      && objContent.charAt(endOfLine) != '\n'
+      && objContent.charAt(endOfLine) != '\r') {
+      endOfLine++;
+    }
+    var line = objContent.substring(startOfLine, endOfLine);
+    if (line.indexOf("v") === 0 || line.indexOf("f ") === 0 || line.indexOf("l ") === 0) {
+      // Append to line next lines if it ends by a back slash
+      while (line.charAt(line.length - 1) === '\\') {
+        // Remove back slash
+        line = line.substring(0, line.length - 1) + " ";
+        // Read next line
+        startOfLine = endOfLine + 1;
+        if (startOfLine < objContent.length
           && objContent.charAt(endOfLine) == '\r'
           && objContent.charAt(startOfLine) == '\n') {
-        startOfLine++;
-      }
-      endOfLine = startOfLine + 1;
-      while (endOfLine < objContent.length
-             && objContent.charAt(endOfLine) != '\n'
-             && objContent.charAt(endOfLine) != '\r') {
-        endOfLine++;
-      }
-      line += objContent.substring(startOfLine, endOfLine);
-    }
-  }
-  
-  line = line.trim();
-  var strings = line.split(/\s+/);
-  var start = strings [0];
-  if (start === "v") {
-    vertices.push(OBJLoader.parseVector3f(strings));
-  } else if (start === "vt") {
-    textureCoordinates.push(OBJLoader.parseVector2f(strings));
-  } else if (start === "vn") {
-    try {
-      normals.push(OBJLoader.parseVector3f(strings));
-    } catch (e) {
-      console.log(objContent + " " + line)
-    }
-  } else if (start === "l") {
-    var line = this.parseLine(strings, currentObjects.material);
-    if (line.vertexIndices.length > 1) {
-      currentObjects.group.addGeometry(line);
-    }
-  } else if (start === "f") {
-    var face = this.parseFace(strings, currentObjects.smooth, currentObjects.material);
-    if (face.vertexIndices.length > 2) {
-      if (face.normalIndices.length === 0
-          || currentObjects.group.name.indexOf("sweethome3d_") === 0) {
-        currentObjects.group.addGeometry(face);
-      } else {
-        // Except for group names starting with sweethome3d_ which faces group mustn't be changed,
-        // add faces with normals to the group with the same material 
-        // since there won't be any smooth normal to computes
-        if (!(face.material in materialGroupsWithNormals)) {
-          materialGroupsWithNormals [face.material] = currentObjects.group;
+          startOfLine++;
         }
-        materialGroupsWithNormals [face.material].addGeometry(face);
+        endOfLine = startOfLine + 1;
+        while (endOfLine < objContent.length
+          && objContent.charAt(endOfLine) != '\n'
+          && objContent.charAt(endOfLine) != '\r') {
+          endOfLine++;
+        }
+        line += objContent.substring(startOfLine, endOfLine);
       }
     }
-  } else if (start === "g" || start === "o") {
-    if (strings.length > 1) {
-      var name = strings [1];
-      currentObjects.group = groups [name];
-      if (currentObjects.group === undefined) {
-        currentObjects.group = new OBJLoader.OBJGroup(name);
-        groups [name] = currentObjects.group;
-      }        
-    } else {
-      currentObjects.group = groups ["default"];
+
+    line = line.trim();
+    let strings = line.split(/\s+/);
+    let start = strings[0];
+    if (start === "v") {
+      vertices.push(OBJLoader.parseVector3f(strings));
+    } else if (start === "vt") {
+      textureCoordinates.push(OBJLoader.parseVector2f(strings));
+    } else if (start === "vn") {
+      try {
+        normals.push(OBJLoader.parseVector3f(strings));
+      } catch (e) {
+        console.log(objContent + " " + line)
+      }
+    } else if (start === "l") {
+      var line = this.parseLine(strings, currentObjects.material);
+      if (line.vertexIndices.length > 1) {
+        currentObjects.group.addGeometry(line);
+      }
+    } else if (start === "f") {
+      let face = this.parseFace(strings, currentObjects.smooth, currentObjects.material);
+      if (face.vertexIndices.length > 2) {
+        if (face.normalIndices.length === 0
+          || currentObjects.group.name.indexOf("sweethome3d_") === 0) {
+          currentObjects.group.addGeometry(face);
+        } else {
+          // Except for group names starting with sweethome3d_ which faces group mustn't be changed,
+          // add faces with normals to the group with the same material 
+          // since there won't be any smooth normal to computes
+          if (!(face.material in materialGroupsWithNormals)) {
+            materialGroupsWithNormals[face.material] = currentObjects.group;
+          }
+          materialGroupsWithNormals[face.material].addGeometry(face);
+        }
+      }
+    } else if (start === "g" || start === "o") {
+      if (strings.length > 1) {
+        let name = strings[1];
+        currentObjects.group = groups[name];
+        if (currentObjects.group === undefined) {
+          currentObjects.group = new OBJLoader.OBJGroup(name);
+          groups[name] = currentObjects.group;
+        }
+      } else {
+        currentObjects.group = groups["default"];
+      }
+    } else if (start === "s") {
+      currentObjects.smooth = strings[1] != "off";
+    } else if (start === "usemtl") {
+      currentObjects.material = line.substring(7, line.length).trim();
     }
-  } else if (start === "s") {
-    currentObjects.smooth = strings [1] != "off";
-  } else if (start === "usemtl") {
-    currentObjects.material = line.substring(7, line.length).trim();
-  }
-  
-  startOfLine = endOfLine + 1;
-  if (startOfLine < objContent.length
+
+    startOfLine = endOfLine + 1;
+    if (startOfLine < objContent.length
       && objContent.charAt(endOfLine) == '\r'
       && objContent.charAt(startOfLine) == '\n') {
-    startOfLine++;
-  }
-  
-  return startOfLine;
-}
-
-/**
- * Returns the object line in strings.
- * @private
- */
-OBJLoader.prototype.parseLine = function(strings, material) {
-  //    l v       v       v       ...
-  // or l v/vt    v/vt    v/vt    ...
-  var vertexIndices = [];
-  var textureCoordinateIndices = [];
-  for (var i = 0; i < strings.length; i++) {
-    var indices = strings [i];
-    if (i > 0
-        && indices.length > 0) {
-      var firstSlashIndex = indices.indexOf('/');
-      if (firstSlashIndex === -1) {
-        // l v 
-        vertexIndices.push(OBJLoader.parseInteger(indices) - 1);
-      } else {
-        // l v/vt
-        vertexIndices.push(OBJLoader.parseInteger(indices.substring(0, firstSlashIndex)) - 1);
-        textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1)) - 1);
-      }
+      startOfLine++;
     }
-  }
-  if (vertexIndices.length !== textureCoordinateIndices.length) {
-    // Ignore unconsistent texture coordinate 
-    textureCoordinateIndices = [];
-  }
-  return new OBJLoader.OBJLine(vertexIndices, textureCoordinateIndices, material);
-}
 
-/**
- * Returns the object face in strings.
- * @private
- */
-OBJLoader.prototype.parseFace = function(strings, smooth, material) {
-  //    f v       v       v       ...
-  // or f v//vn   v//vn   v//vn   ...
-  // or f v/vt    v/vt    v/vt    ...
-  // or f v/vt/vn v/vt/vn v/vt/vn ...
-  var vertexIndices = [];
-  var textureCoordinateIndices = [];
-  var normalIndices = [];
-  for (var i = 0; i < strings.length; i++) {
-    var indices = strings [i];
-    if (i > 0
+    return startOfLine;
+  }
+
+  /**
+   * Returns the object line in strings.
+   * @private
+   */
+  parseLine(strings, material) {
+    //    l v       v       v       ...
+    // or l v/vt    v/vt    v/vt    ...
+    let vertexIndices = [];
+    let textureCoordinateIndices = [];
+    for (let i = 0; i < strings.length; i++) {
+      let indices = strings[i];
+      if (i > 0
         && indices.length > 0) {
-      var firstSlashIndex = indices.indexOf('/');
-      if (firstSlashIndex === -1) {
-        // f v 
-        vertexIndices.push(OBJLoader.parseInteger(indices) - 1);
-      } else {
-        vertexIndices.push(OBJLoader.parseInteger(indices.substring(0, firstSlashIndex)) - 1);
-        var lastSlashIndex = indices.lastIndexOf('/');
-        if (firstSlashIndex === lastSlashIndex) {
-          // f v/vt
-          textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1)) - 1);
+        let firstSlashIndex = indices.indexOf('/');
+        if (firstSlashIndex === -1) {
+          // l v 
+          vertexIndices.push(OBJLoader.parseInteger(indices) - 1);
         } else {
-          if (firstSlashIndex + 1 !== lastSlashIndex) {
-            // f v/vt/vn
-            textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1, lastSlashIndex)) - 1);
-          }
-          //    f v//vn
-          // or f v/vt/vn
-          normalIndices.push(OBJLoader.parseInteger(indices.substring(lastSlashIndex + 1)) - 1);
+          // l v/vt
+          vertexIndices.push(OBJLoader.parseInteger(indices.substring(0, firstSlashIndex)) - 1);
+          textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1)) - 1);
         }
       }
     }
-  }
-  if (vertexIndices.length !== textureCoordinateIndices.length) {
-    // Ignore unconsistent texture coordinate 
-    textureCoordinateIndices = [];
-  }
-  if (vertexIndices.length !== normalIndices.length) {
-    // Ignore unconsistent normals
-    normalIndices = [];
-  }
-  return new OBJLoader.OBJFace(vertexIndices, textureCoordinateIndices, normalIndices, smooth, material);
-}
-
-/**
- * Parses appearances from the given material entry, then returns true if the given entry exists.
- * @private
- */
-OBJLoader.prototype.parseMaterialEntry = function(mtlEntryName, appearances, objEntryName, zip) {
-  var lastSlash = objEntryName.lastIndexOf("/");
-  if (lastSlash >= 0) {
-    mtlEntryName = objEntryName.substring(0, lastSlash + 1) + mtlEntryName;
-  }
-  var mtlEntry = zip.file(mtlEntryName);
-  if (mtlEntry !== null) {
-    OBJLoader.parseMaterial(mtlEntry.asBinary(), appearances, objEntryName, zip);
-  }
-}
-
-/**
- * Returns a vector created from the numbers in 2nd to 4th strings.
- * @private
- */
-OBJLoader.parseVector3f = function(strings) {
-  //     v x y z
-  // or vn x y z
-  // or Ka r g b
-  // or Kd r g b
-  // or Ks r g b
-  return vec3.fromValues(OBJLoader.parseNumber(strings [1]), 
-      OBJLoader.parseNumber(strings [2]),
-      OBJLoader.parseNumber(strings [3]));
-}
-
-/**
- * Returns a vector created from the numbers in 2nd and 3rd strings.
- * @private
- */
-OBJLoader.parseVector2f = function(strings) {
-  // vt x y z
-  return vec2.fromValues(OBJLoader.parseNumber(strings [1]), 
-      OBJLoader.parseNumber(strings [2]));
-}
-
-/**
- * Returns the integer contained in the given parameter. 
- * @private
- */
-OBJLoader.parseInteger = function(string) {
-  var i = parseInt(string);
-  if (isNaN(i)) {
-    throw new IncorrectFormat3DException("Incorrect integer " + string);
-  }
-  return i;
-}
-
-/**
- * Returns the number contained in the given parameter. 
- * @private
- */
-OBJLoader.parseNumber = function(string) {
-  var x = parseFloat(string);
-  if (isNaN(x)) {
-    if (string == "NaN") {
-      return NaN;
+    if (vertexIndices.length !== textureCoordinateIndices.length) {
+      // Ignore unconsistent texture coordinate 
+      textureCoordinateIndices = [];
     }
-    throw new IncorrectFormat3DException("Incorrect number " + string);
+    return new OBJLoader.OBJLine(vertexIndices, textureCoordinateIndices, material);
   }
-  return x;
-}
 
-/**
- * Parses a map of appearances from the given content. 
- * @private
- */
-OBJLoader.parseMaterial = function(mtlContent, appearances, objEntryName, zip) {
-  var currentAppearance = null; 
-  var lines = mtlContent.match(/^.*$/mg);
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines [i].trim();
-    var strings = line.split(/\s+/);
-    var start = strings [0];
-    if (start == "newmtl") {
-      currentAppearance = new Appearance3D(line.substring(7, line.length).trim());
-      appearances [currentAppearance.getName()] = currentAppearance;
-    } else if (currentAppearance !== null) {
-      if (start == "Ka") {
-        currentAppearance.setAmbientColor(OBJLoader.parseVector3f(strings));
-      } else if (start == "Kd") {
-        currentAppearance.setDiffuseColor(OBJLoader.parseVector3f(strings));
-      } else if (start == "Ks") {
-        currentAppearance.setSpecularColor(OBJLoader.parseVector3f(strings));
-      } else if (start == "Ns") {
-        currentAppearance.setShininess(Math.max(1, Math.min(OBJLoader.parseNumber(strings [1]), 128)));
-      } else if (start == "d") {
-        // Store transparency opposite value
-        currentAppearance.setTransparency(1 - Math.max(0, OBJLoader.parseNumber(strings [1] == "-halo" ? strings [2] : strings [1])));
-      } else if (start == "illum") {
-        currentAppearance.setIllumination(OBJLoader.parseInteger(strings [1]));
-      } else if (start == "map_Kd") {
-        var imageEntryName = strings [strings.length - 1];
-        var lastSlash = objEntryName.lastIndexOf("/");
-        if (lastSlash >= 0) {
-          imageEntryName = objEntryName.substring(0, lastSlash + 1) + imageEntryName;
+  /**
+   * Returns the object face in strings.
+   * @private
+   */
+  parseFace(strings, smooth, material) {
+    //    f v       v       v       ...
+    // or f v//vn   v//vn   v//vn   ...
+    // or f v/vt    v/vt    v/vt    ...
+    // or f v/vt/vn v/vt/vn v/vt/vn ...
+    let vertexIndices = [];
+    let textureCoordinateIndices = [];
+    let normalIndices = [];
+    for (let i = 0; i < strings.length; i++) {
+      let indices = strings[i];
+      if (i > 0
+        && indices.length > 0) {
+        let firstSlashIndex = indices.indexOf('/');
+        if (firstSlashIndex === -1) {
+          // f v 
+          vertexIndices.push(OBJLoader.parseInteger(indices) - 1);
+        } else {
+          vertexIndices.push(OBJLoader.parseInteger(indices.substring(0, firstSlashIndex)) - 1);
+          let lastSlashIndex = indices.lastIndexOf('/');
+          if (firstSlashIndex === lastSlashIndex) {
+            // f v/vt
+            textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1)) - 1);
+          } else {
+            if (firstSlashIndex + 1 !== lastSlashIndex) {
+              // f v/vt/vn
+              textureCoordinateIndices.push(OBJLoader.parseInteger(indices.substring(firstSlashIndex + 1, lastSlashIndex)) - 1);
+            }
+            //    f v//vn
+            // or f v/vt/vn
+            normalIndices.push(OBJLoader.parseInteger(indices.substring(lastSlashIndex + 1)) - 1);
+          }
         }
-        var imageEntry = zip.file(imageEntryName);
-        if (imageEntry === null
-            && strings.length > 2) {
-          imageEntryName = line.substring(7, line.length).trim();
+      }
+    }
+    if (vertexIndices.length !== textureCoordinateIndices.length) {
+      // Ignore unconsistent texture coordinate 
+      textureCoordinateIndices = [];
+    }
+    if (vertexIndices.length !== normalIndices.length) {
+      // Ignore unconsistent normals
+      normalIndices = [];
+    }
+    return new OBJLoader.OBJFace(vertexIndices, textureCoordinateIndices, normalIndices, smooth, material);
+  }
+
+  /**
+   * Parses appearances from the given material entry, then returns true if the given entry exists.
+   * @private
+   */
+  parseMaterialEntry(mtlEntryName, appearances, objEntryName, zip) {
+    let lastSlash = objEntryName.lastIndexOf("/");
+    if (lastSlash >= 0) {
+      mtlEntryName = objEntryName.substring(0, lastSlash + 1) + mtlEntryName;
+    }
+    let mtlEntry = zip.file(mtlEntryName);
+    if (mtlEntry !== null) {
+      OBJLoader.parseMaterial(mtlEntry.asBinary(), appearances, objEntryName, zip);
+    }
+  }
+
+  /**
+   * Returns a vector created from the numbers in 2nd to 4th strings.
+   * @private
+   */
+  static parseVector3f(strings) {
+    //     v x y z
+    // or vn x y z
+    // or Ka r g b
+    // or Kd r g b
+    // or Ks r g b
+    return vec3.fromValues(OBJLoader.parseNumber(strings[1]),
+      OBJLoader.parseNumber(strings[2]),
+      OBJLoader.parseNumber(strings[3]));
+  }
+
+  /**
+   * Returns a vector created from the numbers in 2nd and 3rd strings.
+   * @private
+   */
+  static parseVector2f(strings) {
+    // vt x y z
+    return vec2.fromValues(OBJLoader.parseNumber(strings[1]),
+      OBJLoader.parseNumber(strings[2]));
+  }
+
+  /**
+   * Returns the integer contained in the given parameter. 
+   * @private
+   */
+  static parseInteger(string) {
+    let i = parseInt(string);
+    if (isNaN(i)) {
+      throw new IncorrectFormat3DException("Incorrect integer " + string);
+    }
+    return i;
+  }
+
+  /**
+   * Returns the number contained in the given parameter. 
+   * @private
+   */
+  static parseNumber(string) {
+    let x = parseFloat(string);
+    if (isNaN(x)) {
+      if (string == "NaN") {
+        return NaN;
+      }
+      throw new IncorrectFormat3DException("Incorrect number " + string);
+    }
+    return x;
+  }
+
+  /**
+   * Parses a map of appearances from the given content. 
+   * @private
+   */
+  static parseMaterial(mtlContent, appearances, objEntryName, zip) {
+    let currentAppearance = null;
+    let lines = mtlContent.match(/^.*$/mg);
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      let strings = line.split(/\s+/);
+      let start = strings[0];
+      if (start == "newmtl") {
+        currentAppearance = new Appearance3D(line.substring(7, line.length).trim());
+        appearances[currentAppearance.getName()] = currentAppearance;
+      } else if (currentAppearance !== null) {
+        if (start == "Ka") {
+          currentAppearance.setAmbientColor(OBJLoader.parseVector3f(strings));
+        } else if (start == "Kd") {
+          currentAppearance.setDiffuseColor(OBJLoader.parseVector3f(strings));
+        } else if (start == "Ks") {
+          currentAppearance.setSpecularColor(OBJLoader.parseVector3f(strings));
+        } else if (start == "Ns") {
+          currentAppearance.setShininess(Math.max(1, Math.min(OBJLoader.parseNumber(strings[1]), 128)));
+        } else if (start == "d") {
+          // Store transparency opposite value
+          currentAppearance.setTransparency(1 - Math.max(0, OBJLoader.parseNumber(strings[1] == "-halo" ? strings[2] : strings[1])));
+        } else if (start == "illum") {
+          currentAppearance.setIllumination(OBJLoader.parseInteger(strings[1]));
+        } else if (start == "map_Kd") {
+          let imageEntryName = strings[strings.length - 1];
+          let lastSlash = objEntryName.lastIndexOf("/");
           if (lastSlash >= 0) {
             imageEntryName = objEntryName.substring(0, lastSlash + 1) + imageEntryName;
           }
-          imageEntry = zip.file(imageEntryName);
+          let imageEntry = zip.file(imageEntryName);
+          if (imageEntry === null
+            && strings.length > 2) {
+            imageEntryName = line.substring(7, line.length).trim();
+            if (lastSlash >= 0) {
+              imageEntryName = objEntryName.substring(0, lastSlash + 1) + imageEntryName;
+            }
+            imageEntry = zip.file(imageEntryName);
+          }
+          if (imageEntry !== null) {
+            currentAppearance.imageEntryName = imageEntryName;
+          }
         }
-        if (imageEntry !== null) {
-          currentAppearance.imageEntryName = imageEntryName;
-        }
-      } 
-      // Ignore Ni and sharpness
+        // Ignore Ni and sharpness
+      }
     }
+  }
+
+}
+
+OBJLoader.defaultAppearances = null;
+
+class OBJGroup {
+  /**
+   * Creates a group of geometries read in an OBJ file.
+   * @constructor
+   * @private
+   */
+  constructor(name) {
+    this.name = name;
+    this.geometries = [];
+  }
+  addGeometry(geometry) {
+    this.geometries.push(geometry);
   }
 }
 
-/**
- * Creates a group of geometries read in an OBJ file.
- * @constructor
- * @private
- */
-OBJLoader.OBJGroup = function(name) {
-  this.name = name;
-  this.geometries = [];
+OBJLoader.OBJGroup = OBJGroup;
+
+class OBJLine {
+  /**
+   * Creates a line read in an OBJ file.
+   * @constructor
+   * @private
+   */
+  constructor(vertexIndices, textureCoordinateIndices, material) {
+    this.vertexIndices = vertexIndices;
+    this.textureCoordinateIndices = textureCoordinateIndices;
+    this.material = material;
+  }
 }
 
-OBJLoader.OBJGroup.prototype.addGeometry = function(geometry) {
-  this.geometries.push(geometry);
-};
+OBJLoader.OBJLine = OBJLine;
 
-/**
- * Creates a line read in an OBJ file.
- * @constructor
- * @private
- */
-OBJLoader.OBJLine = function(vertexIndices, textureCoordinateIndices, material) {
-  this.vertexIndices = vertexIndices;
-  this.textureCoordinateIndices = textureCoordinateIndices;
-  this.material = material;
+
+class OBJFace {
+  /**
+   * Creates a face read in an OBJ file.
+   * @constructor
+   * @private
+   */
+  constructor(vertexIndices, textureCoordinateIndices, normalIndices, smooth, material) {
+    this.vertexIndices = vertexIndices;
+    this.textureCoordinateIndices = textureCoordinateIndices;
+    this.normalIndices = normalIndices;
+    this.smooth = smooth;
+    this.material = material;
+  }
 }
 
-/**
- * Creates a face read in an OBJ file.
- * @constructor
- * @private
- */
-OBJLoader.OBJFace = function(vertexIndices, textureCoordinateIndices, normalIndices, smooth, material) {
-  this.vertexIndices = vertexIndices;
-  this.textureCoordinateIndices = textureCoordinateIndices;
-  this.normalIndices = normalIndices;
-  this.smooth = smooth;
-  this.material = material;
-}
+OBJLoader.OBJFace = OBJFace;
