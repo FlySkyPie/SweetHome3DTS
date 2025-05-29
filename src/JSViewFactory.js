@@ -58,6 +58,7 @@ import { ModelPreviewComponent } from './ModelPreviewComponent';
 import { TextureChoiceComponent } from './TextureChoiceComponent';
 import { ModelMaterialsComponent } from './ModelMaterialsComponent';
 import { ZIPTools } from './URLContent';
+import { ModelManager } from './ModelManager';
 
 /**
  * A view default factory that is use to create all the views in the application.
@@ -2016,8 +2017,6 @@ export class JSViewFactory {
   createHomeFurnitureView(preferences, controller) {
     class HomeFurnitureDialog extends JSDialog {
       constructor() {
-        this.controller = controller;
-
         super(
           preferences,
           "@{HomeFurniturePanel.homeFurniture.title}",
@@ -2032,6 +2031,8 @@ export class JSViewFactory {
             }
           }
         );
+
+        this.controller = controller;
 
         this.initNameAndPricePanel();
         this.initLocationPanel();
@@ -4401,8 +4402,6 @@ export class JSViewFactory {
   createCompassView(preferences, controller) {
     class CompassDialog extends JSDialog {
       constructor() {
-        this.controller = controller;
-
         super(
           preferences,
           "@{CompassPanel.compass.title}",
@@ -4414,6 +4413,7 @@ export class JSViewFactory {
             }
           }
         );
+        this.controller = controller;
 
         this.initRosePanel();
         this.initGeographicLocationPanel();

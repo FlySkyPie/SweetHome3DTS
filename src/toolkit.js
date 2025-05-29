@@ -671,10 +671,6 @@ export class JSImageResizingDialog extends JSDialog {
     imageResizeRequested,
     originalImageRequested
   ) {
-    this.cancelButtonMessage = JSComponent.substituteWithLocale(preferences, cancelButtonMessage);
-    this.keepUnchangedButtonMessage = JSComponent.substituteWithLocale(preferences, keepUnchangedButtonMessage);
-    this.okButtonMessage = JSComponent.substituteWithLocale(preferences, okButtonMessage);
-
     super(
       preferences,
       JSComponent.substituteWithLocale(preferences, title),
@@ -691,6 +687,10 @@ export class JSImageResizingDialog extends JSDialog {
         }
       }
     );
+
+    this.cancelButtonMessage = JSComponent.substituteWithLocale(preferences, cancelButtonMessage);
+    this.keepUnchangedButtonMessage = JSComponent.substituteWithLocale(preferences, keepUnchangedButtonMessage);
+    this.okButtonMessage = JSComponent.substituteWithLocale(preferences, okButtonMessage);
 
     const dialog = this;
     const cancelButton = this.findElement(".dialog-cancel-button");
@@ -1165,6 +1165,7 @@ if (!JSPopupMenu.globalCloserRegistered) {
  */
 export class JSSpinner extends JSComponent {
   constructor(preferences, spanElement, options) {
+    super(preferences, spanElement, true);
     if (spanElement.tagName.toUpperCase() != "SPAN") {
       throw new Error("JSSpinner: please provide a span for the spinner to work - " + spanElement + " is not a span");
     }
@@ -1197,7 +1198,7 @@ export class JSSpinner extends JSComponent {
     }
 
     const component = this;
-    super(preferences, spanElement, true);
+    
 
     spanElement.classList.add("spinner");
 
