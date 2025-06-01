@@ -3,6 +3,11 @@ import { DefaultHandler } from '@flyskypie/xml-sax-parser/DefaultHandlers.js';
 
 import { EventObject, PropertyChangeSupport, UUID } from './core';
 
+/**
+ * Due to circular dependency this can't use this at the moment.
+ */
+// import { UserPreferences } from './UserPreferences';
+
 /*
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
  *
