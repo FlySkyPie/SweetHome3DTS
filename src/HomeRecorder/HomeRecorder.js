@@ -20,18 +20,20 @@
 import JSZip from 'jszip';
 import { SAXParser } from '@flyskypie/xml-sax-parser';
 
-import { HomeXMLHandler, XMLWriter, HomeXMLExporter } from './SweetHome3D';
+import { HomeXMLHandler, XMLWriter, HomeXMLExporter } from '../SweetHome3D';
 
-import { ContentDigestManager } from './ContentDigestManager';
-import { StringWriter, UUID } from './core';
+import { ContentDigestManager } from '../ContentDigestManager';
+import { StringWriter, UUID } from '../core';
 import {
   LocalStorageURLContent, BlobURLContent,
   HomeURLContent, IndexedDBURLContent, LocalURLContent,
   SimpleURLContent, URLContent,
   OperatingSystem,
-} from './URLContent';
-import { CoreTools } from './CoreTools';
-import { ZIPTools } from './URLContent';
+} from '../URLContent';
+import { CoreTools } from '../CoreTools';
+import { ZIPTools } from '../URLContent';
+
+import WriteHomeWorker from './WriteHomeWorker?worker';
 
 /**
  * Creates a home recorder able to read homes from URLs.
@@ -173,10 +175,11 @@ export class HomeRecorder {
       if (url.indexOf(LocalStorageURLContent.LOCAL_STORAGE_PREFIX) === 0) {
         // Parse URL of the form localstorage:regExpWithCapturingGroup
         let path = url.substring(url.indexOf(LocalStorageURLContent.LOCAL_STORAGE_PREFIX) + LocalStorageURLContent.LOCAL_STORAGE_PREFIX.length);
-        var regExp = new RegExp(path.indexOf('?') > 0 ? path.substring(0, path.indexOf('?')) : path);
+        const regExp = new RegExp(path.indexOf('?') > 0 ?
+          path.substring(0, path.indexOf('?')) : path);
         let propertyNames = Object.getOwnPropertyNames(localStorage);
         let resourceKeys = [];
-        for (var i = 0; i < propertyNames.length; i++) {
+        for (let i = 0; i < propertyNames.length; i++) {
           let tags = propertyNames[i].match(regExp);
           if (tags) {
             resourceKeys.push(propertyNames[i]);
@@ -184,7 +187,7 @@ export class HomeRecorder {
         }
         if (resourceKeys.length > 0) {
           // Get resource digest and store it in content digest manager 
-          for (var i = resourceKeys.length - 1; i >= 0; i--) {
+          for (let i = resourceKeys.length - 1; i >= 0; i--) {
             let data = localStorage.getItem(resourceKeys[i]);
             let contentType = data.substring("data:".length, data.indexOf(';'));
             let chars = atob(data.substring(data.indexOf(',') + 1));
@@ -228,7 +231,7 @@ export class HomeRecorder {
         let databaseName = url.substring(databaseNameIndex, firstPathSlashIndex);
         let objectStore = url.substring(firstPathSlashIndex + 1, questionMarkIndex);
         let keyPathField = url.substring(questionMarkIndex + 1, equalIndex);
-        var regExp = new RegExp(url.substring(equalIndex + 1, ampersandIndex > 0 ? ampersandIndex : url.length));
+        const regExp = new RegExp(url.substring(equalIndex + 1, ampersandIndex > 0 ? ampersandIndex : url.length));
 
         let databaseUpgradeNeeded = ev => {
           let database = ev.target.result;
@@ -285,7 +288,7 @@ export class HomeRecorder {
         };
 
         if (indexedDB != null) {
-          var request = indexedDB.open(databaseName);
+          let request = indexedDB.open(databaseName);
           request.addEventListener("upgradeneeded", databaseUpgradeNeeded);
           request.addEventListener("error", databaseError);
           request.addEventListener("success", databaseSuccess);
@@ -294,7 +297,7 @@ export class HomeRecorder {
           recorder.replaceOrExtractHomeContents(home, homeUrl, observer);
         }
       } else {
-        var request = new XMLHttpRequest();
+        let request = new XMLHttpRequest();
         let querySeparator = url.indexOf('?') != -1 ? '&' : '?';
         request.open("GET", url + querySeparator + "requestId=" + UUID.randomUUID(), true);
         request.addEventListener("load", (ev) => {
@@ -425,7 +428,7 @@ export class HomeRecorder {
                   });
                 };
 
-                var remainingHomeContents = {};
+                let remainingHomeContents = {};
                 for (let j = 0; j < homeContents.length; j++) {
                   let homeContent = homeContents[j];
                   if (permanentContents.indexOf(homeContent) < 0) {
@@ -651,24 +654,25 @@ export class HomeRecorder {
       && this.configuration.writeHomeWithWorker) {
       // Generate ZIP file in a separate worker
       if (this.writeHomeWorker == null) {
-        let blob = new Blob(["importScripts('" + ZIPTools.getScriptFolder() + "jszip.min.js');"
-          + "importScripts('" + (document.getElementById('recorder-worker') != null
-            ? document.getElementById('recorder-worker').src
-            : ZIPTools.getScriptFolder("URLContent.js") + "URLContent.js', '" + ZIPTools.getScriptFolder("HomeRecorder.js") + "HomeRecorder.js")
-          + "');"
-          + "onmessage = function(ev) {"
-          + "  new HomeRecorder(ev.data.recorderConfiguration).generateHomeZip("
-          + "      ev.data.homeXmlEntry, ev.data.homeContents, ev.data.homeContentTypes, ev.data.savedContentNames, ev.data.dataType, {"
-          + "         homeSaved: function(homeXmlEntry, data) {"
-          + "            postMessage(data);"
-          + "         },"
-          + "         homeError: function(status, error) {"
-          + "            postMessage({status: status, error: error});"
-          + "         }"
-          + "    });"
-          + "}"],
-          { type: 'text/plain' });
-        this.writeHomeWorker = new Worker(URL.createObjectURL(blob));
+        // let blob = new Blob(["importScripts('" + ZIPTools.getScriptFolder() + "jszip.min.js');"
+        //   + "importScripts('" + (document.getElementById('recorder-worker') != null
+        //     ? document.getElementById('recorder-worker').src
+        //     : ZIPTools.getScriptFolder("URLContent.js") + "URLContent.js', '" + ZIPTools.getScriptFolder("HomeRecorder.js") + "HomeRecorder.js")
+        //   + "');"
+        //   + "onmessage = function(ev) {"
+        //   + "  new HomeRecorder(ev.data.recorderConfiguration).generateHomeZip("
+        //   + "      ev.data.homeXmlEntry, ev.data.homeContents, ev.data.homeContentTypes, ev.data.savedContentNames, ev.data.dataType, {"
+        //   + "         homeSaved: function(homeXmlEntry, data) {"
+        //   + "            postMessage(data);"
+        //   + "         },"
+        //   + "         homeError: function(status, error) {"
+        //   + "            postMessage({status: status, error: error});"
+        //   + "         }"
+        //   + "    });"
+        //   + "}"],
+        //   { type: 'text/plain' });
+        // this.writeHomeWorker = new Worker(URL.createObjectURL(blob));
+        this.writeHomeWorker = new WriteHomeWorker();
       }
       let recorder = this;
       let workerListener = ev => {
@@ -771,7 +775,7 @@ export class HomeRecorder {
     if (homeContents.length > 0) {
       if (homeContentTypes !== null) {
         // Recreate content objects from their type
-        for (var i = 0; i < homeContents.length; i++) {
+        for (let i = 0; i < homeContents.length; i++) {
           let savedContentName = savedContentNames[homeContents[i].url];
           switch (homeContentTypes[i]) {
             case "SimpleURLContent":
@@ -809,7 +813,7 @@ export class HomeRecorder {
           observer.homeError(status, error);
         }
       };
-      for (var i = homeContentsCopy.length - 1; i >= 0; i--) {
+      for (let i = homeContentsCopy.length - 1; i >= 0; i--) {
         let content = homeContentsCopy[i];
         let contentEntryName = savedContentNames[content.getURL()];
         if (contentEntryName !== undefined) {
@@ -1037,15 +1041,15 @@ export class HomeRecorder {
    */
   searchContents(object, homeObjects, contents, acceptContent, replaceContent) {
     if (Array.isArray(object)) {
-      for (var i = 0; i < object.length; i++) {
-        var replacingContent = this.searchContents(object[i], homeObjects, contents, acceptContent, replaceContent);
+      for (let i = 0; i < object.length; i++) {
+        let replacingContent = this.searchContents(object[i], homeObjects, contents, acceptContent, replaceContent);
         if (replacingContent !== null) {
           object[i] = replacingContent;
         }
       }
     } else if (object instanceof URLContent
       && (acceptContent === undefined || acceptContent(object))) {
-      var i = 0;
+        let i = 0;
       for (; i < contents.length; i++) {
         if (contents[i].getURL() == object.getURL()) {
           break;
@@ -1077,7 +1081,7 @@ export class HomeRecorder {
           continue;
         }
         let propertyValue = object[propertyName];
-        var replacingContent = this.searchContents(propertyValue, homeObjects, contents, acceptContent, replaceContent);
+        let replacingContent = this.searchContents(propertyValue, homeObjects, contents, acceptContent, replaceContent);
         if (replacingContent !== null) {
           object[propertyName] = replacingContent;
         }
