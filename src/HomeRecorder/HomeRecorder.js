@@ -36,19 +36,33 @@ import { ZIPTools } from '../URLContent';
 import WriteHomeWorker from './WriteHomeWorker?worker';
 
 /**
+ * @typedef {Object} IConfiguration
+ * @property {string} writeCacheResourceURL
+ * @property {string} readCacheResourceURL
+ * @property {string} listCacheResourcesURL
+ * @property {string} compressionLevel
+ * @property {string} includeAllContent
+ * @property {string} writeDataType
+ * @property {string} writeHomeWithWorker
+ */
+
+/**
  * Creates a home recorder able to read homes from URLs.
- * @constructor
- * @param {{writeCacheResourceURL: string,
- *          readCacheResourceURL: string,
- *          listCacheResourcesURL: string,
- *          compressionLevel: number,
- *          includeAllContent: boolean,
- *          writeDataType: string,
- *          writeHomeWithWorker: boolean 
- *         }} [configuration] the recorder configuration
+ * @class
+ * @property {IConfiguration} configuration the recorder configuration
  * @author Emmanuel Puybaret
  */
 export class HomeRecorder {
+  /**
+   * @type {IConfiguration}
+   * @protected
+   */
+  // configuration = undefined;
+
+  /**
+   * @constructor
+   * @param {IConfiguration} configuration the recorder configuration
+   */
   constructor(configuration) {
     this.configuration = configuration !== undefined ? configuration : {};
   }
@@ -1049,7 +1063,7 @@ export class HomeRecorder {
       }
     } else if (object instanceof URLContent
       && (acceptContent === undefined || acceptContent(object))) {
-        let i = 0;
+      let i = 0;
       for (; i < contents.length; i++) {
         if (contents[i].getURL() == object.getURL()) {
           break;

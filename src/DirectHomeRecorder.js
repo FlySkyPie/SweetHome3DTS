@@ -32,21 +32,33 @@ import { CoreTools } from './CoreTools';
 import { UUID } from './core';
 
 /**
+ * @typedef {Object} IConfiguration
+ * @property {string} readHomeURL
+ * @property {string} writeHomeURL
+ * @property {string} writeResourceURL
+ * @property {string} readResourceURL
+ * @property {string} listHomesURL
+ * @property {string} deleteHomeURL
+ * @property {string} compressionLevel
+ * @property {string} writeHomeWithWorker
+ */
+
+/**
  * Creates a home recorder able to save homes and its resources directly on server, 
  * in local storage or in indexedDB.
  * @constructor
- * @param {{readHomeURL: string,
- *          writeHomeURL: string,
- *          writeResourceURL: string,
- *          readResourceURL: string,
- *          listHomesURL: string,
- *          deleteHomeURL: string,
- *          compressionLevel: number,
- *          writeHomeWithWorker: boolean
- *         }} [configuration] the recorder configuration
  * @author Emmanuel Puybaret
  */
 export class DirectHomeRecorder extends HomeRecorder {
+  /**
+   * @type {IConfiguration}
+   */
+  // configuration;
+
+  /**
+   * 
+   * @param {IConfiguration} configuration 
+   */
   constructor(configuration) {
     super(configuration);
   }

@@ -403,11 +403,6 @@ CoreTools.loadAvailableFontNames = observer => {
 export { CoreTools };
 
 /**
- * Used by SweetHome3D.js
- */
-window.CoreTools = CoreTools;
-
-/**
  * Utilities for colors.
  * @class
  * @ignore

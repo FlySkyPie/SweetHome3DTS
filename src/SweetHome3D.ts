@@ -1,3 +1,4 @@
+import '@flyskypie/j4ts-swingundo';
 import { SAXException } from '@flyskypie/xml-sax-parser/exceptions/index.js';
 import { DefaultHandler } from '@flyskypie/xml-sax-parser/DefaultHandlers.js';
 
@@ -6,7 +7,9 @@ import { EventObject, PropertyChangeSupport, UUID } from './core';
 /**
  * Due to circular dependency this can't use this at the moment.
  */
-// import { UserPreferences } from './UserPreferences';
+// import { UserPreferences, DefaultUserPreferences } from './UserPreferences';
+
+import { CoreTools } from './CoreTools'
 
 /*
  * Sweet Home 3D, Copyright (c) 2024 Space Mushrooms <info@sweethome3d.com>
