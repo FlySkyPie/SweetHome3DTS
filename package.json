@@ -23,7 +23,7 @@
     "@flyskypie/j4ts-awtgeom": "^1.0.1",
     "@flyskypie/j4ts-batik-svgpathparser": "^1.0.0",
     "@flyskypie/j4ts-swingundo": "^1.0.1",
-    "@flyskypie/xml-sax-parser": "^0.1.1",
+    "@flyskypie/xml-sax-parser": "^0.1.2",
     "@types/gl-matrix": "^2.4.5",
     "big.js": "^3.2.0",
     "gl-matrix": "^2.8.1",

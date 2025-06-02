@@ -18,8 +18,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1
       '@flyskypie/xml-sax-parser':
-        specifier: ^0.1.1
-        version: 0.1.1
+        specifier: ^0.1.2
+        version: 0.1.2
       '@types/gl-matrix':
         specifier: ^2.4.5
         version: 2.4.5
@@ -257,8 +257,8 @@ packages:
   '@flyskypie/j4ts-swingundo@1.0.1':
     resolution: {integrity: sha512-RQV8tcMYYVIHXW63XwunYF1XRtGcGtLUYibCVznnlqeS7t2lOb1STkK2Y7/RP6qDbwYYi7WFtqbzdymctEW5vA==}
 
-  '@flyskypie/xml-sax-parser@0.1.1':
-    resolution: {integrity: sha512-MFRFHEiBaA9+x6Omj0Xn5wW6Ys7Lt/8DCt7FEL6RBJKmAx7X8ew49gx/saULcOHL8cPEORJgoEJ2YvNk9TMM0g==}
+  '@flyskypie/xml-sax-parser@0.1.2':
+    resolution: {integrity: sha512-0ddEABZohpXtSv8ukmkha+R4ALmy4fFLItXetcIY5isQLCImGDX69drR8hdCHc6bLjoSAUjiL8ujG6RcuSCbjQ==}
 
   '@hapi/bourne@3.0.0':
     resolution: {integrity: sha512-Waj1cwPXJDucOib4a3bAISsKJVb15MKi9IvmTI/7ssVEm6sywXGjVJDhl6/umt1pK1ZS7PacXU3A1PmFKHEZ2w==}
@@ -1667,7 +1667,7 @@ snapshots:
 
   '@flyskypie/j4ts-swingundo@1.0.1': {}
 
-  '@flyskypie/xml-sax-parser@0.1.1': {}
+  '@flyskypie/xml-sax-parser@0.1.2': {}
 
   '@hapi/bourne@3.0.0': {}
 
